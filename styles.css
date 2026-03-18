@@ -1,0 +1,356 @@
+/* ═══ БАЗОВЫЕ СТИЛИ ═══ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: var(--tg-theme-bg-color, #f5f5f5);
+    color: var(--tg-theme-text-color, #000);
+    overflow-x: hidden;
+}
+
+.app {
+    max-width: 600px;
+    margin: 0 auto;
+    padding-bottom: 20px;
+}
+
+/* ═══ ЗАГОЛОВОК ═══ */
+.header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.update-time {
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+/* ═══ СТАТИСТИКА (карточки) ═══ */
+.stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 15px;
+    margin-top: -20px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 15px 10px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+}
+
+.stat-card:active {
+    transform: scale(0.95);
+}
+
+.stat-icon {
+    font-size: 24px;
+    margin-bottom: 5px;
+}
+
+.stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #667eea;
+    margin-bottom: 3px;
+}
+
+.stat-label {
+    font-size: 11px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ═══ ТАБЫ ═══ */
+.tabs {
+    display: flex;
+    background: white;
+    border-bottom: 2px solid #eee;
+    padding: 0 15px;
+    gap: 5px;
+}
+
+.tab {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    font-weight: 600;
+    color: #888;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s;
+}
+
+.tab.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+}
+
+/* ═══ КОНТЕНТ ═══ */
+.content {
+    padding: 15px;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+    animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══ ПОЗИЦИИ ═══ */
+.positions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.position-card {
+    background: white;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+}
+
+.position-card:active {
+    transform: scale(0.98);
+}
+
+.position-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.position-symbol {
+    font-size: 18px;
+    font-weight: 700;
+    color: #333;
+}
+
+.position-pnl {
+    font-size: 16px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 6px;
+}
+
+.position-pnl.positive {
+    color: #10b981;
+    background: #d1fae5;
+}
+
+.position-pnl.negative {
+    color: #ef4444;
+    background: #fee2e2;
+}
+
+.position-details {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.position-progress {
+    width: 100%;
+    height: 6px;
+    background: #eee;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.position-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    transition: width 0.5s ease;
+}
+
+/* ═══ ВОЗМОЖНОСТИ ═══ */
+.opportunities-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.opportunity-card {
+    background: white;
+    border-radius: 10px;
+    padding: 12px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: transform 0.2s;
+}
+
+.opportunity-card:active {
+    transform: scale(0.98);
+}
+
+.opportunity-info {
+    flex: 1;
+}
+
+.opportunity-symbol {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 3px;
+}
+
+.opportunity-exchanges {
+    font-size: 12px;
+    color: #888;
+}
+
+.opportunity-profit {
+    font-size: 18px;
+    font-weight: 700;
+    color: #10b981;
+}
+
+/* ═══ НАСТРОЙКИ ═══ */
+.settings {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.settings h2 {
+    margin-bottom: 20px;
+    font-size: 20px;
+}
+
+.setting-item {
+    margin-bottom: 20px;
+}
+
+.setting-item label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.setting-item select,
+.setting-item input[type="number"] {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #eee;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.setting-item input[type="checkbox"] {
+    width: 50px;
+    height: 26px;
+}
+
+/* ═══ КНОПКИ ═══ */
+.btn-primary {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.btn-primary:active {
+    transform: scale(0.95);
+}
+
+/* ═══ ЗАГРУЗКА ═══ */
+.loading {
+    text-align: center;
+    padding: 40px 20px;
+    color: #888;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #eee;
+    border-top-color: #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 15px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ═══ ВЕРСИЯ ═══ */
+.version-info {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+    text-align: center;
+    font-size: 12px;
+    color: #999;
+}
+
+/* ═══ АДАПТИВ ═══ */
+@media (max-width: 400px) {
+    .stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .tabs {
+        flex-direction: column;
+    }
+}
+
+/* ═══ ТЁМНАЯ ТЕМА ═══ */
+body.dark-mode {
+    background: #1a1a1a;
+    color: #fff;
+}
+
+body.dark-mode .stat-card,
+body.dark-mode .position-card,
+body.dark-mode .opportunity-card,
+body.dark-mode .settings {
+    background: #2a2a2a;
+    color: #fff;
+}
+
+body.dark-mode .position-symbol,
+body.dark-mode .opportunity-symbol {
+    color: #fff;
+}
