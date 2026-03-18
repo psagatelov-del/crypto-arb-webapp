@@ -17,7 +17,7 @@ let settings = {
 
 // ═══ URL API БОТА ═══
 // Замени на адрес своего бота!
-const API_BASE = 'http://143.47.251.15:8000/api';
+const API_BASE = 'http:// https://psagatelov-del.github.io/crypto-arb-webapp/:8000/api';
 
 // ═══ СОСТОЯНИЕ ПРИЛОЖЕНИЯ ═══
 let state = {
