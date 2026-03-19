@@ -16,8 +16,7 @@ let settings = {
 };
 
 // ═══ URL API БОТА ═══
-// Замени на адрес своего бота!
-const API_BASE = 'http://localhost:8000/api/positions?user_id=836773735;
+const API_BASE = 'http://localhost:8000/api';
 
 // ═══ СОСТОЯНИЕ ПРИЛОЖЕНИЯ ═══
 let state = {
@@ -50,64 +49,25 @@ document.querySelectorAll('.tab').forEach(tab => {
 // ═══ ФУНКЦИЯ: ЗАГРУЗКА ПОЗИЦИЙ ═══
 async function loadPositions() {
     try {
-        // В реальном приложении - запрос к API
-        // const response = await fetch(`${API_BASE}/positions?user_id=${userId}`);
-        // const data = await response.json();
+        // Запрос к РЕАЛЬНОМУ API
+        const response = await fetch(`${API_BASE}/positions?user_id=${userId}`);
+        const data = await response.json();
         
-        // ПОКА ЧТО - ДЕМО ДАННЫЕ
-        const data = {
-            positions: [
-                {
-                    symbol: 'BTC/USDT',
-                    long_exchange: 'BYBIT',
-                    short_exchange: 'BINANCE',
-                    entry_price_long: 96500,
-                    entry_price_short: 96400,
-                    current_price_long: 96850,
-                    current_price_short: 96840,
-                    size: 0.5,
-                    leverage: 1,
-                    pnl_percent: 2.8,
-                    pnl_usd: 142,
-                    target_progress: 80
-                },
-                {
-                    symbol: 'ETH/USDT',
-                    long_exchange: 'BYBIT',
-                    short_exchange: 'MEXC',
-                    entry_price_long: 3250,
-                    entry_price_short: 3245,
-                    current_price_long: 3210,
-                    current_price_short: 3220,
-                    size: 5,
-                    leverage: 1,
-                    pnl_percent: -1.2,
-                    pnl_usd: -45,
-                    target_progress: 20
-                },
-                {
-                    symbol: 'SOL/USDT',
-                    long_exchange: 'KUCOIN',
-                    short_exchange: 'BINANCE',
-                    entry_price_long: 145,
-                    entry_price_short: 144.5,
-                    current_price_long: 147.2,
-                    current_price_short: 147,
-                    size: 20,
-                    leverage: 1,
-                    pnl_percent: 1.5,
-                    pnl_usd: 58,
-                    target_progress: 50
-                }
-            ]
-        };
+        // Проверяем что данные получены
+        if (data.positions) {
+            state.positions = data.positions;
+        } else {
+            state.positions = [];
+        }
         
-        state.positions = data.positions;
         renderPositions();
         updateStats();
         
     } catch (error) {
         console.error('Ошибка загрузки позиций:', error);
+        // При ошибке показываем пустой список
+        state.positions = [];
+        renderPositions();
     }
 }
 
@@ -150,45 +110,23 @@ function renderPositions() {
 // ═══ ФУНКЦИЯ: ЗАГРУЗКА ВОЗМОЖНОСТЕЙ ═══
 async function loadOpportunities() {
     try {
-        // ДЕМО ДАННЫЕ
-        const data = {
-            opportunities: [
-                {
-                    symbol: 'BTC/USDT',
-                    long_exchange: 'BYBIT',
-                    short_exchange: 'BINANCE',
-                    net_profit: 2.1
-                },
-                {
-                    symbol: 'ETH/USDT',
-                    long_exchange: 'BYBIT',
-                    short_exchange: 'MEXC',
-                    net_profit: 1.8
-                },
-                {
-                    symbol: 'SOL/USDT',
-                    long_exchange: 'KUCOIN',
-                    short_exchange: 'BINANCE',
-                    net_profit: 1.5
-                },
-                {
-                    symbol: 'MATIC/USDT',
-                    long_exchange: 'BYBIT',
-                    short_exchange: 'GATE',
-                    net_profit: 1.7
-                }
-            ]
-        };
+        // Запрос к РЕАЛЬНОМУ API
+        const response = await fetch(`${API_BASE}/opportunities?user_id=${userId}&min_profit=${settings.minProfit}`);
+        const data = await response.json();
         
-        // Фильтруем по минимальной прибыли
-        state.opportunities = data.opportunities.filter(
-            opp => opp.net_profit >= settings.minProfit
-        );
+        // Проверяем что данные получены
+        if (data.opportunities) {
+            state.opportunities = data.opportunities;
+        } else {
+            state.opportunities = [];
+        }
         
         renderOpportunities();
         
     } catch (error) {
         console.error('Ошибка загрузки возможностей:', error);
+        state.opportunities = [];
+        renderOpportunities();
     }
 }
 
