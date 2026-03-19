@@ -38,7 +38,7 @@
             <div class="stat-card">
                 <div class="stat-icon">🔔</div>
                 <div class="stat-value" id="notifications">-</div>
-                <div class="stat-label">Уведомлений</div>
+                <div class="stat-label">Возможностей</div>
             </div>
         </section>
         
@@ -65,10 +65,40 @@
             
             <!-- ТАБ 2: ТОП возможности -->
             <div class="tab-content" id="tab-opportunities">
+                
+                <!-- Кнопка сканирования -->
+                <div class="scan-controls">
+                    <button class="btn-scan" id="btnScan">
+                        🔍 Сканировать возможности
+                    </button>
+                </div>
+                
+                <!-- Фильтры -->
+                <div class="filters">
+                    <div class="filter-group">
+                        <label>Стратегия:</label>
+                        <select id="filterStrategy">
+                            <option value="all">Все</option>
+                            <option value="futures_only">Futures-Futures</option>
+                            <option value="spot_futures">Spot-Futures</option>
+                            <option value="borrow_spot_futures">Borrow-Spot-Futures</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>Сортировка:</label>
+                        <select id="filterSort">
+                            <option value="net_profit">По прибыли</option>
+                            <option value="funding_profit">По фандингу</option>
+                            <option value="spread">По спреду</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Список возможностей -->
                 <div class="opportunities-list" id="opportunitiesList">
                     <div class="loading">
-                        <div class="spinner"></div>
-                        <p>Загрузка возможностей...</p>
+                        <p>Нажмите "Сканировать" для поиска возможностей</p>
                     </div>
                 </div>
             </div>
@@ -102,7 +132,7 @@
                     <button class="btn-primary" id="saveSettings">💾 Сохранить</button>
                     
                     <div class="version-info">
-                        <p>Версия: v2.04.13</p>
+                        <p>Версия: v2.07.15</p>
                         <p>Обновлено: 14.01.2025</p>
                     </div>
                 </div>
