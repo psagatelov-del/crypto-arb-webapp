@@ -4,7 +4,7 @@ tg.ready();
 tg.expand(); // Развернуть на весь экран
 
 // Получаем ID пользователя Telegram
-const userId = tg.initDataUnsafe?.user?.id || 'demo';
+const userId = tg.initDataUnsafe?.user?.id || '836773735';
 
 console.log('🚀 Web App запущен!', { userId });
 
@@ -17,7 +17,7 @@ let settings = {
 
 // ═══ URL API БОТА ═══
 // Замени на адрес своего бота!
-const API_BASE = 'http:// https://psagatelov-del.github.io/crypto-arb-webapp/:8000/api';
+const API_BASE = 'http://localhost:8000/api/positions?user_id=836773735;
 
 // ═══ СОСТОЯНИЕ ПРИЛОЖЕНИЯ ═══
 let state = {
