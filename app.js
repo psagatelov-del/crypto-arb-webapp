@@ -94,8 +94,8 @@ function renderPositions() {
                 </div>
                 
                 <div class="position-details">
-                    🟢 LONG (${pos.long_exchange}): $${pos.current_price_long.toLocaleString()}<br>
-                    🔴 SHORT (${pos.short_exchange}): $${pos.current_price_short.toLocaleString()}<br>
+                    🟢 LONG (${pos.long_exchange.toUpperCase()}): $${pos.current_price_long.toLocaleString()}<br>
+                    🔴 SHORT (${pos.short_exchange.toUpperCase()}): $${pos.current_price_short.toLocaleString()}<br>
                     💰 P&L: ${pnlSign}$${Math.abs(pos.pnl_usd)}
                 </div>
                 
@@ -110,23 +110,46 @@ function renderPositions() {
 // ═══ ФУНКЦИЯ: ЗАГРУЗКА ВОЗМОЖНОСТЕЙ ═══
 async function loadOpportunities() {
     try {
+        const strategy = document.getElementById('filterStrategy')?.value || 'futures_only';
+        const strategyParam = strategy === 'all' ? 'futures_only' : strategy;
+        
         // Запрос к РЕАЛЬНОМУ API
-        const response = await fetch(`${API_BASE}/opportunities?user_id=${userId}&min_profit=${settings.minProfit}`);
+        const response = await fetch(`${API_BASE}/opportunities?user_id=${userId}&strategy=${strategyParam}&min_profit=${settings.minProfit}`);
         const data = await response.json();
         
         // Проверяем что данные получены
         if (data.opportunities) {
             state.opportunities = data.opportunities;
+            
+            // Сортировка
+            const sortBy = document.getElementById('filterSort')?.value || 'net_profit';
+            sortOpportunities(sortBy);
         } else {
             state.opportunities = [];
         }
         
         renderOpportunities();
+        updateStats();
         
     } catch (error) {
         console.error('Ошибка загрузки возможностей:', error);
         state.opportunities = [];
         renderOpportunities();
+    }
+}
+
+// ═══ ФУНКЦИЯ: СОРТИРОВКА ВОЗМОЖНОСТЕЙ ═══
+function sortOpportunities(sortBy) {
+    switch(sortBy) {
+        case 'net_profit':
+            state.opportunities.sort((a, b) => (b.net_profit || 0) - (a.net_profit || 0));
+            break;
+        case 'funding_profit':
+            state.opportunities.sort((a, b) => (b.funding_profit || 0) - (a.funding_profit || 0));
+            break;
+        case 'spread':
+            state.opportunities.sort((a, b) => Math.abs(b.spread || 0) - Math.abs(a.spread || 0));
+            break;
     }
 }
 
@@ -138,24 +161,43 @@ function renderOpportunities() {
         container.innerHTML = `
             <div class="loading">
                 <p>Нет возможностей с прибылью ≥${settings.minProfit}%</p>
+                <p style="font-size: 12px; color: #888; margin-top: 10px;">Попробуйте изменить фильтры или нажмите "Сканировать"</p>
             </div>
         `;
         return;
     }
     
-    container.innerHTML = state.opportunities.map(opp => `
-        <div class="opportunity-card">
-            <div class="opportunity-info">
-                <div class="opportunity-symbol">${opp.symbol}</div>
-                <div class="opportunity-exchanges">
-                    🟢${opp.long_exchange} / 🔴${opp.short_exchange}
+    container.innerHTML = state.opportunities.map(opp => {
+        const longEx = opp.long_exchange || opp.spot_exchange || 'N/A';
+        const shortEx = opp.short_exchange || opp.futures_exchange || 'N/A';
+        
+        return `
+            <div class="opportunity-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div class="opportunity-info">
+                        <div class="opportunity-symbol">${opp.symbol}</div>
+                        <div class="opportunity-exchanges">
+                            🟢${longEx.toUpperCase()} / 🔴${shortEx.toUpperCase()}
+                        </div>
+                    </div>
+                    <div class="opportunity-profit">
+                        +${opp.net_profit.toFixed(1)}%
+                    </div>
                 </div>
+                <button class="btn-open-position" onclick="openPositionFromOpportunity('${opp.symbol}')">
+                    📈 Открыть позицию
+                </button>
             </div>
-            <div class="opportunity-profit">
-                +${opp.net_profit.toFixed(1)}%
-            </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
+}
+
+// ═══ ФУНКЦИЯ: ОТКРЫТЬ ПОЗИЦИЮ ИЗ ВОЗМОЖНОСТИ ═══
+function openPositionFromOpportunity(symbol) {
+    // Пока просто уведомление
+    tg.showAlert(`📈 Открытие позиции ${symbol}\n\n⚠️ Эта функция в разработке!\n\nСкоро вы сможете открывать позиции прямо из Web App!`);
+    
+    console.log('Открыть позицию:', symbol);
 }
 
 // ═══ ФУНКЦИЯ: ОБНОВЛЕНИЕ СТАТИСТИКИ ═══
@@ -234,6 +276,36 @@ document.getElementById('saveSettings').addEventListener('click', () => {
     tg.showAlert('✅ Настройки сохранены!');
     
     console.log('💾 Настройки сохранены:', settings);
+});
+
+// ═══ ОБРАБОТЧИКИ ФИЛЬТРОВ И СКАНИРОВАНИЯ ═══
+document.getElementById('btnScan')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btnScan');
+    const originalText = btn.textContent;
+    
+    btn.textContent = '⏳ Сканирование...';
+    btn.classList.add('loading');
+    
+    await loadOpportunities();
+    
+    btn.textContent = originalText;
+    btn.classList.remove('loading');
+    
+    if (state.opportunities.length > 0) {
+        tg.showAlert(`✅ Найдено ${state.opportunities.length} возможностей!`);
+    } else {
+        tg.showAlert(`⚠️ Возможностей не найдено.\n\nПопробуйте снизить минимум прибыли в настройках.`);
+    }
+});
+
+document.getElementById('filterStrategy')?.addEventListener('change', () => {
+    loadOpportunities();
+});
+
+document.getElementById('filterSort')?.addEventListener('change', () => {
+    const sortBy = document.getElementById('filterSort').value;
+    sortOpportunities(sortBy);
+    renderOpportunities();
 });
 
 // ═══ ЗАГРУЗКА НАСТРОЕК ИЗ localStorage ═══
