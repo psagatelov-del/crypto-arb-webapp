@@ -29,7 +29,8 @@ let state = {
     },
     selectedOpportunity: null,
     selectedPosition: null,
-    openPositionMode: false  // Режим формы открытия
+    openPositionMode: false,  // Режим формы открытия
+    closePositionMode: false  // Режим формы закрытия
 };
 
 // ═══ ПЕРЕКЛЮЧЕНИЕ ТАБОВ ═══
@@ -111,6 +112,16 @@ function renderPositions() {
 function showPositionDetails(index) {
     const pos = state.positions[index];
     state.selectedPosition = pos;
+    state.closePositionMode = false;  // Сначала показываем детали
+    
+    renderPositionModal();
+    document.getElementById('modalPosition').classList.add('active');
+}
+
+// ═══ ФУНКЦИЯ: ОТРИСОВКА МОДАЛЬНОГО ОКНА ПОЗИЦИИ ═══
+function renderPositionModal() {
+    const pos = state.selectedPosition;
+    if (!pos) return;
     
     const pnlClass = pos.pnl_percent >= 0 ? 'positive' : 'negative';
     const pnlSign = pos.pnl_percent >= 0 ? '+' : '';
@@ -118,86 +129,275 @@ function showPositionDetails(index) {
     document.getElementById('posModalTitle').textContent = `📊 ${pos.symbol}`;
     
     const modalBody = document.getElementById('posModalBody');
-    modalBody.innerHTML = `
-        <div class="detail-section">
-            <h3>💰 Прибыль/Убыток</h3>
-            <div class="detail-row">
-                <div class="detail-label">P&L процент:</div>
-                <div class="detail-value ${pnlClass}">${pnlSign}${pos.pnl_percent.toFixed(2)}%</div>
-            </div>
-            <div class="detail-row">
-                <div class="detail-label">P&L USDT:</div>
-                <div class="detail-value ${pnlClass}">${pnlSign}$${Math.abs(pos.pnl_usd).toFixed(2)}</div>
-            </div>
-            <div class="detail-row">
-                <div class="detail-label">Прогресс до цели:</div>
-                <div class="detail-value">${pos.target_progress.toFixed(0)}%</div>
-            </div>
-        </div>
-        
-        <div class="detail-section">
-            <h3>🟢 LONG Позиция</h3>
-            <div class="detail-row">
-                <div class="detail-label">Биржа:</div>
-                <div class="detail-value">${pos.long_exchange.toUpperCase()}</div>
-            </div>
-            <div class="detail-row">
-                <div class="detail-label">Входная цена:</div>
-                <div class="detail-value">$${pos.entry_price_long.toLocaleString()}</div>
-            </div>
-            <div class="detail-row">
-                <div class="detail-label">Текущая цена:</div>
-                <div class="detail-value ${pos.current_price_long > pos.entry_price_long ? 'positive' : 'negative'}">
-                    $${pos.current_price_long.toLocaleString()}
-                </div>
-            </div>
-        </div>
-        
-        <div class="detail-section">
-            <h3>🔴 SHORT Позиция</h3>
-            <div class="detail-row">
-                <div class="detail-label">Биржа:</div>
-                <div class="detail-value">${pos.short_exchange.toUpperCase()}</div>
-            </div>
-            <div class="detail-row">
-                <div class="detail-label">Входная цена:</div>
-                <div class="detail-value">$${pos.entry_price_short.toLocaleString()}</div>
-            </div>
-            <div class="detail-row">
-                <div class="detail-label">Текущая цена:</div>
-                <div class="detail-value ${pos.current_price_short < pos.entry_price_short ? 'positive' : 'negative'}">
-                    $${pos.current_price_short.toLocaleString()}
-                </div>
-            </div>
-        </div>
-        
-        <div class="detail-section">
-            <h3>📋 Информация</h3>
-            <div class="detail-row">
-                <div class="detail-label">Размер позиции:</div>
-                <div class="detail-value">${pos.size} ${pos.symbol.replace('USDT', '')}</div>
-            </div>
-            <div class="detail-row">
-                <div class="detail-label">Плечо:</div>
-                <div class="detail-value">${pos.leverage}x</div>
-            </div>
-        </div>
-    `;
     
-    document.getElementById('modalPosition').classList.add('active');
+    if (state.closePositionMode) {
+        // РЕЖИМ ФОРМЫ ЗАКРЫТИЯ
+        modalBody.innerHTML = `
+            <div class="form-section">
+                <h3>🔴 Закрытие позиции ${pos.symbol}</h3>
+                
+                <div class="info-box" style="background: ${pnlClass === 'positive' ? '#d1fae5' : '#fee2e2'}; border-left-color: ${pnlClass === 'positive' ? '#10b981' : '#ef4444'};">
+                    <strong>💰 Текущий P&L:</strong><br>
+                    Процент: <strong>${pnlSign}${pos.pnl_percent.toFixed(2)}%</strong><br>
+                    USDT: <strong>${pnlSign}$${Math.abs(pos.pnl_usd).toFixed(2)}</strong>
+                </div>
+                
+                <div class="form-group">
+                    <label>📊 Текущие цены:</label>
+                    <div class="detail-row">
+                        <div class="detail-label">🟢 LONG (${pos.long_exchange.toUpperCase()}):</div>
+                        <div class="detail-value">$${pos.current_price_long.toLocaleString()}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">🔴 SHORT (${pos.short_exchange.toUpperCase()}):</div>
+                        <div class="detail-value">$${pos.current_price_short.toLocaleString()}</div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>🔢 Размер закрытия:</label>
+                    <select id="inputCloseSize" class="form-input">
+                        <option value="100">Закрыть полностью (100%)</option>
+                        <option value="50">Закрыть половину (50%)</option>
+                        <option value="25">Закрыть четверть (25%)</option>
+                        <option value="custom">Указать вручную</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="customSizeGroup" style="display: none;">
+                    <label>💰 Размер (монет):</label>
+                    <input type="number" id="inputCustomSize" step="0.001" min="0.001" max="${pos.size}" placeholder="${pos.size}" class="form-input">
+                    <small>Максимум: ${pos.size} ${pos.symbol.replace('USDT', '')}</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>⚠️ Подтверждение:</label>
+                    <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 15px; margin-top: 10px;">
+                        <input type="checkbox" id="confirmClose" style="width: auto; margin-right: 10px;">
+                        <label for="confirmClose" style="display: inline; font-weight: normal;">
+                            Я понимаю, что позиция будет закрыта по текущим рыночным ценам
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="info-box">
+                    <strong>ℹ️ Информация о закрытии:</strong><br>
+                    📍 Размер позиции: ${pos.size} ${pos.symbol.replace('USDT', '')}<br>
+                    📍 Входные цены: LONG $${pos.entry_price_long.toLocaleString()} / SHORT $${pos.entry_price_short.toLocaleString()}<br>
+                    📍 Плечо: ${pos.leverage}x<br>
+                    ${pnlClass === 'positive' ? '✅ Закрытие с прибылью' : '⚠️ Закрытие с убытком'}
+                </div>
+            </div>
+        `;
+        
+        // Обработчик для показа/скрытия поля custom size
+        document.getElementById('inputCloseSize')?.addEventListener('change', (e) => {
+            const customGroup = document.getElementById('customSizeGroup');
+            if (e.target.value === 'custom') {
+                customGroup.style.display = 'block';
+            } else {
+                customGroup.style.display = 'none';
+            }
+        });
+        
+        // Меняем кнопки
+        document.getElementById('posModalFooter').innerHTML = `
+            <button class="btn-secondary" onclick="backToPositionDetails()">← Назад</button>
+            <button class="btn-danger" onclick="confirmClosePosition()">🔴 Закрыть позицию</button>
+        `;
+        
+    } else {
+        // РЕЖИМ ПРОСМОТРА ДЕТАЛЕЙ
+        modalBody.innerHTML = `
+            <div class="detail-section">
+                <h3>💰 Прибыль/Убыток</h3>
+                <div class="detail-row">
+                    <div class="detail-label">P&L процент:</div>
+                    <div class="detail-value ${pnlClass}">${pnlSign}${pos.pnl_percent.toFixed(2)}%</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">P&L USDT:</div>
+                    <div class="detail-value ${pnlClass}">${pnlSign}$${Math.abs(pos.pnl_usd).toFixed(2)}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Прогресс до цели:</div>
+                    <div class="detail-value">${pos.target_progress.toFixed(0)}%</div>
+                </div>
+            </div>
+            
+            <div class="detail-section">
+                <h3>💵 Текущие цены</h3>
+                <div class="detail-row">
+                    <div class="detail-label">LONG цена:</div>
+                    <div class="detail-value">$${pos.current_price_long.toLocaleString()}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">SHORT цена:</div>
+                    <div class="detail-value">$${pos.current_price_short.toLocaleString()}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Разница цен:</div>
+                    <div class="detail-value">$${Math.abs(pos.current_price_long - pos.current_price_short).toFixed(2)}</div>
+                </div>
+            </div>
+            
+            <div class="detail-section">
+                <h3>🟢 LONG Позиция</h3>
+                <div class="detail-row">
+                    <div class="detail-label">Биржа:</div>
+                    <div class="detail-value">${pos.long_exchange.toUpperCase()}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Входная цена:</div>
+                    <div class="detail-value">$${pos.entry_price_long.toLocaleString()}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Текущая цена:</div>
+                    <div class="detail-value ${pos.current_price_long > pos.entry_price_long ? 'positive' : 'negative'}">
+                        $${pos.current_price_long.toLocaleString()}
+                    </div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Изменение:</div>
+                    <div class="detail-value ${pos.current_price_long > pos.entry_price_long ? 'positive' : 'negative'}">
+                        ${pos.current_price_long > pos.entry_price_long ? '+' : ''}${((pos.current_price_long - pos.entry_price_long) / pos.entry_price_long * 100).toFixed(2)}%
+                    </div>
+                </div>
+            </div>
+            
+            <div class="detail-section">
+                <h3>🔴 SHORT Позиция</h3>
+                <div class="detail-row">
+                    <div class="detail-label">Биржа:</div>
+                    <div class="detail-value">${pos.short_exchange.toUpperCase()}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Входная цена:</div>
+                    <div class="detail-value">$${pos.entry_price_short.toLocaleString()}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Текущая цена:</div>
+                    <div class="detail-value ${pos.current_price_short < pos.entry_price_short ? 'positive' : 'negative'}">
+                        $${pos.current_price_short.toLocaleString()}
+                    </div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Изменение:</div>
+                    <div class="detail-value ${pos.current_price_short < pos.entry_price_short ? 'positive' : 'negative'}">
+                        ${pos.current_price_short < pos.entry_price_short ? '+' : ''}${((pos.entry_price_short - pos.current_price_short) / pos.entry_price_short * 100).toFixed(2)}%
+                    </div>
+                </div>
+            </div>
+            
+            <div class="detail-section">
+                <h3>📋 Информация</h3>
+                <div class="detail-row">
+                    <div class="detail-label">Размер позиции:</div>
+                    <div class="detail-value">${pos.size} ${pos.symbol.replace('USDT', '')}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Плечо:</div>
+                    <div class="detail-value">${pos.leverage}x</div>
+                </div>
+            </div>
+        `;
+        
+        // Меняем кнопки
+        document.getElementById('posModalFooter').innerHTML = `
+            <button class="btn-secondary" onclick="closePositionModal()">Закрыть</button>
+            <button class="btn-danger" onclick="closePositionFromModal()">🔴 Закрыть позицию</button>
+        `;
+    }
 }
 
 // ═══ ФУНКЦИЯ: ЗАКРЫТЬ МОДАЛЬНОЕ ОКНО ПОЗИЦИИ ═══
 function closePositionModal() {
     document.getElementById('modalPosition').classList.remove('active');
+    state.closePositionMode = false;
 }
 
-// ═══ ФУНКЦИЯ: ЗАКРЫТЬ ПОЗИЦИЮ ИЗ МОДАЛЬНОГО ОКНА ═══
+// ═══ ФУНКЦИЯ: ОТКРЫТЬ ФОРМУ ЗАКРЫТИЯ ПОЗИЦИИ ═══
 function closePositionFromModal() {
-    if (!state.selectedPosition) return;
+    state.closePositionMode = true;
+    renderPositionModal();
+}
+
+// ═══ ФУНКЦИЯ: ВЕРНУТЬСЯ К ДЕТАЛЯМ ПОЗИЦИИ ═══
+function backToPositionDetails() {
+    state.closePositionMode = false;
+    renderPositionModal();
+}
+
+// ═══ ФУНКЦИЯ: ПОДТВЕРДИТЬ ЗАКРЫТИЕ ПОЗИЦИИ ═══
+async function confirmClosePosition() {
+    const pos = state.selectedPosition;
+    if (!pos) return;
     
-    tg.showAlert(`🔴 Закрытие позиции ${state.selectedPosition.symbol}\n\n⚠️ Эта функция в разработке!`);
+    // Проверка подтверждения
+    const confirmed = document.getElementById('confirmClose').checked;
+    if (!confirmed) {
+        tg.showAlert('⚠️ Пожалуйста, подтвердите закрытие позиции!');
+        return;
+    }
+    
+    // Получаем размер закрытия
+    const closeSizeOption = document.getElementById('inputCloseSize').value;
+    let closeSize;
+    
+    if (closeSizeOption === 'custom') {
+        const customSize = parseFloat(document.getElementById('inputCustomSize').value);
+        if (!customSize || customSize <= 0 || customSize > pos.size) {
+            tg.showAlert('⚠️ Введите корректный размер позиции!');
+            return;
+        }
+        closeSize = customSize;
+    } else {
+        const percent = parseInt(closeSizeOption);
+        closeSize = (pos.size * percent) / 100;
+    }
+    
+    // Формируем данные для отправки
+    const closeData = {
+        user_id: userId,
+        symbol: pos.symbol,
+        long_exchange: pos.long_exchange,
+        short_exchange: pos.short_exchange,
+        close_size: closeSize,
+        close_percent: (closeSize / pos.size * 100).toFixed(0),
+        current_price_long: pos.current_price_long,
+        current_price_short: pos.current_price_short,
+        pnl_usd: pos.pnl_usd,
+        pnl_percent: pos.pnl_percent
+    };
+    
+    console.log('📤 Закрытие позиции:', closeData);
+    
+    // TODO: Отправка на API
+    // const response = await fetch(`${API_BASE}/positions/close`, {
+    //     method: 'POST',
+    //     headers: { 'Content-Type': 'application/json' },
+    //     body: JSON.stringify(closeData)
+    // });
+    
+    // Пока просто уведомление
+    const closeSizeText = closeSizeOption === '100' ? 'полностью' : 
+                         closeSizeOption === '50' ? 'наполовину' : 
+                         closeSizeOption === '25' ? 'на четверть' : 
+                         `${closeSize} монет`;
+    
+    tg.showAlert(
+        `✅ Позиция закрыта ${closeSizeText}!\n\n` +
+        `${pos.symbol}\n` +
+        `Размер: ${closeSize.toFixed(4)} из ${pos.size}\n` +
+        `P&L: ${pos.pnl_percent >= 0 ? '+' : ''}${pos.pnl_percent.toFixed(2)}%\n` +
+        `Прибыль: ${pos.pnl_percent >= 0 ? '+' : ''}$${Math.abs(pos.pnl_usd).toFixed(2)}\n\n` +
+        `⚠️ Функция отправки в бота в разработке!`
+    );
+    
     closePositionModal();
+    
+    // Обновляем список позиций
+    await loadPositions();
 }
 
 // ═══ ФУНКЦИЯ: ЗАГРУЗКА ВОЗМОЖНОСТЕЙ ═══
