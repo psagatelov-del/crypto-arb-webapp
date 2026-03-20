@@ -22,13 +22,21 @@ const API_BASE = 'http://localhost:8000/api';
 let state = {
     positions: [],
     opportunities: [],
+    history: [],  // История сделок
     stats: {
         positionsCount: 0,
         totalProfit: 0,
         notifications: 0
     },
+    historyStats: {
+        total: 0,
+        profit: 0,
+        loss: 0,
+        winRate: 0
+    },
     selectedOpportunity: null,
     selectedPosition: null,
+    selectedHistoryItem: null,
     openPositionMode: false,  // Режим формы открытия
     closePositionMode: false  // Режим формы закрытия
 };
@@ -830,6 +838,349 @@ function loadSettings() {
     }
 }
 
+// ═══ ФУНКЦИЯ: ЗАГРУЗКА ИСТОРИИ ═══
+async function loadHistory() {
+    try {
+        // Запрос к API
+        const response = await fetch(`${API_BASE}/history?user_id=${userId}`);
+        const data = await response.json();
+        
+        if (data.history) {
+            state.history = data.history;
+        } else {
+            // ДЕМО ДАННЫЕ для примера
+            state.history = [
+                {
+                    id: '1',
+                    symbol: 'BTCUSDT',
+                    long_exchange: 'bybit',
+                    short_exchange: 'binance',
+                    entry_price_long: 96500,
+                    entry_price_short: 96400,
+                    exit_price_long: 96850,
+                    exit_price_short: 96840,
+                    size: 0.5,
+                    leverage: 1,
+                    pnl_percent: 2.8,
+                    pnl_usd: 142,
+                    opened_at: '2025-01-14T10:30:00',
+                    closed_at: '2025-01-14T16:45:00',
+                    duration_hours: 6.25
+                },
+                {
+                    id: '2',
+                    symbol: 'ETHUSDT',
+                    long_exchange: 'bybit',
+                    short_exchange: 'mexc',
+                    entry_price_long: 3250,
+                    entry_price_short: 3245,
+                    exit_price_long: 3210,
+                    exit_price_short: 3220,
+                    size: 5,
+                    leverage: 1,
+                    pnl_percent: -1.2,
+                    pnl_usd: -45,
+                    opened_at: '2025-01-13T14:20:00',
+                    closed_at: '2025-01-13T20:15:00',
+                    duration_hours: 5.92
+                },
+                {
+                    id: '3',
+                    symbol: 'SOLUSDT',
+                    long_exchange: 'kucoin',
+                    short_exchange: 'binance',
+                    entry_price_long: 145,
+                    entry_price_short: 144.5,
+                    exit_price_long: 147.2,
+                    exit_price_short: 147,
+                    size: 20,
+                    leverage: 1,
+                    pnl_percent: 1.5,
+                    pnl_usd: 58,
+                    opened_at: '2025-01-12T09:00:00',
+                    closed_at: '2025-01-12T18:30:00',
+                    duration_hours: 9.5
+                }
+            ];
+        }
+        
+        filterAndRenderHistory();
+        
+    } catch (error) {
+        console.error('Ошибка загрузки истории:', error);
+        state.history = [];
+        renderHistory();
+    }
+}
+
+// ═══ ФУНКЦИЯ: ФИЛЬТРАЦИЯ И ОТРИСОВКА ИСТОРИИ ═══
+function filterAndRenderHistory() {
+    const period = document.getElementById('filterPeriod')?.value || 'all';
+    const profitFilter = document.getElementById('filterProfit')?.value || 'all';
+    
+    let filtered = [...state.history];
+    
+    // Фильтр по периоду
+    if (period !== 'all') {
+        const now = new Date();
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        filtered = filtered.filter(item => {
+            const closedDate = new Date(item.closed_at);
+            
+            switch(period) {
+                case 'today':
+                    return closedDate >= startOfDay;
+                case 'week':
+                    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                    return closedDate >= weekAgo;
+                case 'month':
+                    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                    return closedDate >= monthAgo;
+                default:
+                    return true;
+            }
+        });
+    }
+    
+    // Фильтр по прибыли/убытку
+    if (profitFilter !== 'all') {
+        filtered = filtered.filter(item => {
+            if (profitFilter === 'profit') {
+                return item.pnl_percent >= 0;
+            } else {
+                return item.pnl_percent < 0;
+            }
+        });
+    }
+    
+    // Сортировка по дате (новые первые)
+    filtered.sort((a, b) => new Date(b.closed_at) - new Date(a.closed_at));
+    
+    renderHistory(filtered);
+    updateHistoryStats(filtered);
+}
+
+// ═══ ФУНКЦИЯ: ОТРИСОВКА ИСТОРИИ ═══
+function renderHistory(items = state.history) {
+    const container = document.getElementById('historyList');
+    
+    if (items.length === 0) {
+        container.innerHTML = '<div class="loading"><p>Нет сделок в истории</p></div>';
+        return;
+    }
+    
+    container.innerHTML = items.map(item => {
+        const pnlClass = item.pnl_percent >= 0 ? 'positive' : 'negative';
+        const pnlSign = item.pnl_percent >= 0 ? '+' : '';
+        
+        const openedDate = new Date(item.opened_at);
+        const closedDate = new Date(item.closed_at);
+        const dateStr = closedDate.toLocaleDateString('ru-RU', { 
+            day: '2-digit', 
+            month: '2-digit', 
+            year: 'numeric' 
+        });
+        const timeStr = closedDate.toLocaleTimeString('ru-RU', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+        
+        return `
+            <div class="history-card">
+                <div class="history-card-header">
+                    <div class="history-symbol">${item.symbol}</div>
+                    <div class="history-pnl ${pnlClass}">
+                        ${pnlSign}${item.pnl_percent.toFixed(2)}%
+                    </div>
+                </div>
+                
+                <div class="history-details">
+                    💰 P&L: ${pnlSign}$${Math.abs(item.pnl_usd).toFixed(2)}<br>
+                    📊 Размер: ${item.size} ${item.symbol.replace('USDT', '')}<br>
+                    🟢 LONG (${item.long_exchange.toUpperCase()}): $${item.entry_price_long.toLocaleString()} → $${item.exit_price_long.toLocaleString()}<br>
+                    🔴 SHORT (${item.short_exchange.toUpperCase()}): $${item.entry_price_short.toLocaleString()} → $${item.exit_price_short.toLocaleString()}<br>
+                    ⏱️ Длительность: ${item.duration_hours.toFixed(1)} часов
+                </div>
+                
+                <div class="history-footer">
+                    <div class="history-date">
+                        📅 ${dateStr} ${timeStr}
+                    </div>
+                    <div class="history-actions">
+                        <button class="btn-history-view" onclick="showHistoryDetails('${item.id}')">
+                            👁️ Детали
+                        </button>
+                        <button class="btn-history-delete" onclick="confirmDeleteHistory('${item.id}')">
+                            🗑️ Удалить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// ═══ ФУНКЦИЯ: ОБНОВЛЕНИЕ СТАТИСТИКИ ИСТОРИИ ═══
+function updateHistoryStats(items = state.history) {
+    const total = items.length;
+    const profitable = items.filter(item => item.pnl_percent >= 0);
+    const loss = items.filter(item => item.pnl_percent < 0);
+    const winRate = total > 0 ? (profitable.length / total * 100).toFixed(0) : 0;
+    
+    state.historyStats = {
+        total: total,
+        profit: profitable.length,
+        loss: loss.length,
+        winRate: winRate
+    };
+    
+    document.getElementById('historyTotal').textContent = total;
+    document.getElementById('historyProfit').textContent = profitable.length;
+    document.getElementById('historyLoss').textContent = loss.length;
+    document.getElementById('historyWinRate').textContent = `${winRate}%`;
+}
+
+// ═══ ФУНКЦИЯ: ПОКАЗАТЬ ДЕТАЛИ СДЕЛКИ ИЗ ИСТОРИИ ═══
+function showHistoryDetails(id) {
+    const item = state.history.find(h => h.id === id);
+    if (!item) return;
+    
+    state.selectedHistoryItem = item;
+    
+    const pnlClass = item.pnl_percent >= 0 ? 'positive' : 'negative';
+    const pnlSign = item.pnl_percent >= 0 ? '+' : '';
+    
+    const openedDate = new Date(item.opened_at);
+    const closedDate = new Date(item.closed_at);
+    
+    document.getElementById('oppModalTitle').textContent = `📜 ${item.symbol} (История)`;
+    
+    const modalBody = document.getElementById('oppModalBody');
+    modalBody.innerHTML = `
+        <div class="detail-section">
+            <h3>💰 Результат</h3>
+            <div class="detail-row">
+                <div class="detail-label">P&L процент:</div>
+                <div class="detail-value ${pnlClass}">${pnlSign}${item.pnl_percent.toFixed(2)}%</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">P&L USDT:</div>
+                <div class="detail-value ${pnlClass}">${pnlSign}$${Math.abs(item.pnl_usd).toFixed(2)}</div>
+            </div>
+        </div>
+        
+        <div class="detail-section">
+            <h3>🟢 LONG (${item.long_exchange.toUpperCase()})</h3>
+            <div class="detail-row">
+                <div class="detail-label">Входная цена:</div>
+                <div class="detail-value">$${item.entry_price_long.toLocaleString()}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Выходная цена:</div>
+                <div class="detail-value">$${item.exit_price_long.toLocaleString()}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Изменение:</div>
+                <div class="detail-value ${item.exit_price_long > item.entry_price_long ? 'positive' : 'negative'}">
+                    ${((item.exit_price_long - item.entry_price_long) / item.entry_price_long * 100).toFixed(2)}%
+                </div>
+            </div>
+        </div>
+        
+        <div class="detail-section">
+            <h3>🔴 SHORT (${item.short_exchange.toUpperCase()})</h3>
+            <div class="detail-row">
+                <div class="detail-label">Входная цена:</div>
+                <div class="detail-value">$${item.entry_price_short.toLocaleString()}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Выходная цена:</div>
+                <div class="detail-value">$${item.exit_price_short.toLocaleString()}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Изменение:</div>
+                <div class="detail-value ${item.exit_price_short < item.entry_price_short ? 'positive' : 'negative'}">
+                    ${((item.entry_price_short - item.exit_price_short) / item.entry_price_short * 100).toFixed(2)}%
+                </div>
+            </div>
+        </div>
+        
+        <div class="detail-section">
+            <h3>📋 Информация</h3>
+            <div class="detail-row">
+                <div class="detail-label">Размер:</div>
+                <div class="detail-value">${item.size} ${item.symbol.replace('USDT', '')}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Плечо:</div>
+                <div class="detail-value">${item.leverage}x</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Открыта:</div>
+                <div class="detail-value">${openedDate.toLocaleString('ru-RU')}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Закрыта:</div>
+                <div class="detail-value">${closedDate.toLocaleString('ru-RU')}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Длительность:</div>
+                <div class="detail-value">${item.duration_hours.toFixed(1)} часов</div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('oppModalFooter').innerHTML = `
+        <button class="btn-secondary" onclick="closeOpportunityModal()">Закрыть</button>
+    `;
+    
+    document.getElementById('modalOpportunity').classList.add('active');
+}
+
+// ═══ ФУНКЦИЯ: ПОДТВЕРЖДЕНИЕ УДАЛЕНИЯ ИЗ ИСТОРИИ ═══
+function confirmDeleteHistory(id) {
+    const item = state.history.find(h => h.id === id);
+    if (!item) return;
+    
+    if (confirm(`Удалить сделку ${item.symbol} из истории?\n\nP&L: ${item.pnl_percent >= 0 ? '+' : ''}${item.pnl_percent.toFixed(2)}%\n\nЭто действие нельзя отменить!`)) {
+        deleteHistoryItem(id);
+    }
+}
+
+// ═══ ФУНКЦИЯ: УДАЛЕНИЕ ИЗ ИСТОРИИ ═══
+async function deleteHistoryItem(id) {
+    try {
+        // TODO: Отправка на API
+        // const response = await fetch(`${API_BASE}/history/${id}`, {
+        //     method: 'DELETE'
+        // });
+        
+        // Удаляем локально
+        state.history = state.history.filter(h => h.id !== id);
+        
+        // Перерисовываем
+        filterAndRenderHistory();
+        
+        tg.showAlert('✅ Сделка удалена из истории');
+        
+        console.log('🗑️ Удалена сделка из истории:', id);
+        
+    } catch (error) {
+        console.error('Ошибка удаления из истории:', error);
+        tg.showAlert('❌ Ошибка при удалении');
+    }
+}
+
+// ═══ ОБРАБОТЧИКИ ФИЛЬТРОВ ИСТОРИИ ═══
+document.getElementById('filterPeriod')?.addEventListener('change', () => {
+    filterAndRenderHistory();
+});
+
+document.getElementById('filterProfit')?.addEventListener('change', () => {
+    filterAndRenderHistory();
+});
+
 // ═══ ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ ═══
 window.addEventListener('load', async () => {
     console.log('📱 Инициализация Web App...');
@@ -838,6 +1189,7 @@ window.addEventListener('load', async () => {
     
     await loadPositions();
     await loadOpportunities();
+    await loadHistory();  // Загружаем историю
     updateTime();
     
     startAutoUpdate();
