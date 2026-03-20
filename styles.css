@@ -582,3 +582,75 @@ body.dark-mode .modal-footer {
 body.dark-mode .detail-row {
     border-color: #333;
 }
+
+/* ═══ ФОРМЫ ═══ */
+.form-section {
+    padding: 10px 0;
+}
+
+.form-section h3 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 15px;
+    color: #667eea;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #eee;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.form-group small {
+    display: block;
+    margin-top: 5px;
+    font-size: 12px;
+    color: #888;
+}
+
+.info-box {
+    background: #f0f9ff;
+    border-left: 4px solid #667eea;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 20px;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* Тёмная тема для форм */
+body.dark-mode .form-group label {
+    color: #fff;
+}
+
+body.dark-mode .form-input {
+    background: #1a1a1a;
+    border-color: #444;
+    color: #fff;
+}
+
+body.dark-mode .info-box {
+    background: #1a3a52;
+    border-left-color: #667eea;
+    color: #fff;
+}
