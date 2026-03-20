@@ -46,6 +46,7 @@
         <nav class="tabs">
             <button class="tab active" data-tab="positions">📊 Позиции</button>
             <button class="tab" data-tab="opportunities">🔥 ТОП</button>
+            <button class="tab" data-tab="history">📜 История</button>
             <button class="tab" data-tab="settings">⚙️ Настройки</button>
         </nav>
         
@@ -102,7 +103,61 @@
                 </div>
             </div>
             
-            <!-- ТАБ 3: Настройки -->
+            <!-- ТАБ 3: История -->
+            <div class="tab-content" id="tab-history">
+                
+                <!-- Фильтры истории -->
+                <div class="filters">
+                    <div class="filter-group">
+                        <label>Период:</label>
+                        <select id="filterPeriod">
+                            <option value="all">За всё время</option>
+                            <option value="today">Сегодня</option>
+                            <option value="week">Неделя</option>
+                            <option value="month">Месяц</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>Фильтр:</label>
+                        <select id="filterProfit">
+                            <option value="all">Все сделки</option>
+                            <option value="profit">Прибыльные</option>
+                            <option value="loss">Убыточные</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Статистика истории -->
+                <div class="history-stats">
+                    <div class="history-stat-card">
+                        <div class="history-stat-label">Всего сделок</div>
+                        <div class="history-stat-value" id="historyTotal">-</div>
+                    </div>
+                    <div class="history-stat-card positive">
+                        <div class="history-stat-label">Прибыльных</div>
+                        <div class="history-stat-value" id="historyProfit">-</div>
+                    </div>
+                    <div class="history-stat-card negative">
+                        <div class="history-stat-label">Убыточных</div>
+                        <div class="history-stat-value" id="historyLoss">-</div>
+                    </div>
+                    <div class="history-stat-card">
+                        <div class="history-stat-label">Win Rate</div>
+                        <div class="history-stat-value" id="historyWinRate">-</div>
+                    </div>
+                </div>
+                
+                <!-- Список истории -->
+                <div class="history-list" id="historyList">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Загрузка истории...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ТАБ 4: Настройки -->
             <div class="tab-content" id="tab-settings">
                 <div class="settings">
                     <h2>⚙️ Настройки</h2>
