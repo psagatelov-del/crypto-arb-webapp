@@ -55,7 +55,6 @@
             <!-- ТАБ 1: Позиции -->
             <div class="tab-content active" id="tab-positions">
                 <div class="positions-list" id="positionsList">
-                    <!-- Позиции будут добавлены через JavaScript -->
                     <div class="loading">
                         <div class="spinner"></div>
                         <p>Загрузка позиций...</p>
@@ -132,7 +131,7 @@
                     <button class="btn-primary" id="saveSettings">💾 Сохранить</button>
                     
                     <div class="version-info">
-                        <p>Версия: v2.07.15</p>
+                        <p>Версия: v2.09.15</p>
                         <p>Обновлено: 14.01.2025</p>
                     </div>
                 </div>
@@ -140,6 +139,40 @@
             
         </main>
         
+    </div>
+    
+    <!-- МОДАЛЬНОЕ ОКНО: Детали возможности -->
+    <div class="modal" id="modalOpportunity">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="oppModalTitle">📊 BTC/USDT</h2>
+                <button class="modal-close" onclick="closeOpportunityModal()">✕</button>
+            </div>
+            <div class="modal-body" id="oppModalBody">
+                <!-- Заполняется JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeOpportunityModal()">Закрыть</button>
+                <button class="btn-primary" onclick="openPositionFromModal()">📈 Открыть позицию</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- МОДАЛЬНОЕ ОКНО: Детали позиции -->
+    <div class="modal" id="modalPosition">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="posModalTitle">📊 BTC/USDT</h2>
+                <button class="modal-close" onclick="closePositionModal()">✕</button>
+            </div>
+            <div class="modal-body" id="posModalBody">
+                <!-- Заполняется JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closePositionModal()">Закрыть</button>
+                <button class="btn-danger" onclick="closePositionFromModal()">🔴 Закрыть позицию</button>
+            </div>
+        </div>
     </div>
     
     <!-- Подключаем наш JavaScript -->
