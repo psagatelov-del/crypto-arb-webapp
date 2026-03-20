@@ -414,6 +414,8 @@ async function loadOpportunities() {
         const strategy = document.getElementById('filterStrategy')?.value || 'futures_only';
         const strategyParam = strategy === 'all' ? 'futures_only' : strategy;
         
+        console.log(`🔍 Загрузка возможностей: стратегия=${strategyParam}, min_profit=${settings.minProfit}%`);
+        
         const response = await fetch(`${API_BASE}/opportunities?user_id=${userId}&strategy=${strategyParam}&min_profit=${settings.minProfit}`);
         const data = await response.json();
         
@@ -421,8 +423,10 @@ async function loadOpportunities() {
             state.opportunities = data.opportunities;
             const sortBy = document.getElementById('filterSort')?.value || 'net_profit';
             sortOpportunities(sortBy);
+            console.log(`✅ Загружено ${state.opportunities.length} возможностей`);
         } else {
             state.opportunities = [];
+            console.log(`⚠️ Нет возможностей`);
         }
         
         renderOpportunities();
