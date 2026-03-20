@@ -848,7 +848,9 @@ async function loadHistory() {
         if (data.history) {
             state.history = data.history;
         } else {
-            // ДЕМО ДАННЫЕ для примера
+            // ДЕМО ДАННЫЕ для примера (с разными датами)
+            const now = new Date();
+            
             state.history = [
                 {
                     id: '1',
@@ -863,9 +865,9 @@ async function loadHistory() {
                     leverage: 1,
                     pnl_percent: 2.8,
                     pnl_usd: 142,
-                    opened_at: '2025-01-14T10:30:00',
-                    closed_at: '2025-01-14T16:45:00',
-                    duration_hours: 6.25
+                    opened_at: new Date(now.getTime() - 6 * 60 * 60 * 1000).toISOString(), // 6 часов назад
+                    closed_at: new Date(now.getTime() - 15 * 60 * 1000).toISOString(), // 15 минут назад
+                    duration_hours: 5.75
                 },
                 {
                     id: '2',
@@ -880,9 +882,9 @@ async function loadHistory() {
                     leverage: 1,
                     pnl_percent: -1.2,
                     pnl_usd: -45,
-                    opened_at: '2025-01-13T14:20:00',
-                    closed_at: '2025-01-13T20:15:00',
-                    duration_hours: 5.92
+                    opened_at: new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString(), // вчера
+                    closed_at: new Date(now.getTime() - 18 * 60 * 60 * 1000).toISOString(), // 18 часов назад
+                    duration_hours: 6
                 },
                 {
                     id: '3',
@@ -897,9 +899,43 @@ async function loadHistory() {
                     leverage: 1,
                     pnl_percent: 1.5,
                     pnl_usd: 58,
-                    opened_at: '2025-01-12T09:00:00',
-                    closed_at: '2025-01-12T18:30:00',
-                    duration_hours: 9.5
+                    opened_at: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 дня назад
+                    closed_at: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 дня назад
+                    duration_hours: 24
+                },
+                {
+                    id: '4',
+                    symbol: 'BNBUSDT',
+                    long_exchange: 'bybit',
+                    short_exchange: 'binance',
+                    entry_price_long: 610,
+                    entry_price_short: 609.5,
+                    exit_price_long: 615,
+                    exit_price_short: 614.2,
+                    size: 3,
+                    leverage: 1,
+                    pnl_percent: 0.9,
+                    pnl_usd: 16.5,
+                    opened_at: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 дней назад
+                    closed_at: new Date(now.getTime() - 9 * 24 * 60 * 60 * 1000).toISOString(), // 9 дней назад
+                    duration_hours: 12
+                },
+                {
+                    id: '5',
+                    symbol: 'XRPUSDT',
+                    long_exchange: 'kucoin',
+                    short_exchange: 'mexc',
+                    entry_price_long: 2.15,
+                    entry_price_short: 2.14,
+                    exit_price_long: 2.08,
+                    exit_price_short: 2.09,
+                    size: 100,
+                    leverage: 1,
+                    pnl_percent: -2.8,
+                    pnl_usd: -6,
+                    opened_at: new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000).toISOString(), // 35 дней назад
+                    closed_at: new Date(now.getTime() - 32 * 24 * 60 * 60 * 1000).toISOString(), // 32 дня назад
+                    duration_hours: 72
                 }
             ];
         }
@@ -966,7 +1002,20 @@ function renderHistory(items = state.history) {
     const container = document.getElementById('historyList');
     
     if (items.length === 0) {
-        container.innerHTML = '<div class="loading"><p>Нет сделок в истории</p></div>';
+        const period = document.getElementById('filterPeriod')?.value || 'all';
+        const periodText = {
+            'all': 'за всё время',
+            'today': 'за сегодня',
+            'week': 'за неделю',
+            'month': 'за месяц'
+        }[period] || 'за выбранный период';
+        
+        container.innerHTML = `
+            <div class="loading">
+                <p>Нет сделок ${periodText}</p>
+                <p style="font-size: 12px; color: #888; margin-top: 10px;">Попробуйте изменить период или фильтр</p>
+            </div>
+        `;
         return;
     }
     
@@ -1026,7 +1075,10 @@ function updateHistoryStats(items = state.history) {
     const total = items.length;
     const profitable = items.filter(item => item.pnl_percent >= 0);
     const loss = items.filter(item => item.pnl_percent < 0);
-    const winRate = total > 0 ? (profitable.length / total * 100).toFixed(0) : 0;
+    
+    // Win Rate = общий P&L в процентах по всем сделкам
+    const totalPnlPercent = items.reduce((sum, item) => sum + item.pnl_percent, 0);
+    const winRate = total > 0 ? (totalPnlPercent / total).toFixed(2) : '0.00';
     
     state.historyStats = {
         total: total,
@@ -1038,7 +1090,19 @@ function updateHistoryStats(items = state.history) {
     document.getElementById('historyTotal').textContent = total;
     document.getElementById('historyProfit').textContent = profitable.length;
     document.getElementById('historyLoss').textContent = loss.length;
-    document.getElementById('historyWinRate').textContent = `${winRate}%`;
+    
+    // Цвет Win Rate в зависимости от прибыли/убытка
+    const winRateEl = document.getElementById('historyWinRate');
+    winRateEl.textContent = `${winRate >= 0 ? '+' : ''}${winRate}%`;
+    
+    // Меняем цвет родительской карточки
+    const winRateCard = winRateEl.closest('.history-stat-card');
+    winRateCard.classList.remove('positive', 'negative');
+    if (parseFloat(winRate) > 0) {
+        winRateCard.classList.add('positive');
+    } else if (parseFloat(winRate) < 0) {
+        winRateCard.classList.add('negative');
+    }
 }
 
 // ═══ ФУНКЦИЯ: ПОКАЗАТЬ ДЕТАЛИ СДЕЛКИ ИЗ ИСТОРИИ ═══
@@ -1062,27 +1126,37 @@ function showHistoryDetails(id) {
             <h3>💰 Результат</h3>
             <div class="detail-row">
                 <div class="detail-label">P&L процент:</div>
-                <div class="detail-value ${pnlClass}">${pnlSign}${item.pnl_percent.toFixed(2)}%</div>
+                <div class="detail-value ${pnlClass}" id="historyPnlPercent">${pnlSign}${item.pnl_percent.toFixed(2)}%</div>
             </div>
             <div class="detail-row">
                 <div class="detail-label">P&L USDT:</div>
-                <div class="detail-value ${pnlClass}">${pnlSign}$${Math.abs(item.pnl_usd).toFixed(2)}</div>
+                <div class="detail-value ${pnlClass}" id="historyPnlUsd">${pnlSign}$${Math.abs(item.pnl_usd).toFixed(2)}</div>
             </div>
         </div>
         
         <div class="detail-section">
             <h3>🟢 LONG (${item.long_exchange.toUpperCase()})</h3>
-            <div class="detail-row">
-                <div class="detail-label">Входная цена:</div>
-                <div class="detail-value">$${item.entry_price_long.toLocaleString()}</div>
+            <div class="form-group">
+                <label>Входная цена (нажмите для редактирования):</label>
+                <input type="number" 
+                       id="editEntryLong" 
+                       class="form-input" 
+                       value="${item.entry_price_long}" 
+                       step="0.01"
+                       onchange="recalculateHistoryPnL()">
             </div>
-            <div class="detail-row">
-                <div class="detail-label">Выходная цена:</div>
-                <div class="detail-value">$${item.exit_price_long.toLocaleString()}</div>
+            <div class="form-group">
+                <label>Выходная цена (нажмите для редактирования):</label>
+                <input type="number" 
+                       id="editExitLong" 
+                       class="form-input" 
+                       value="${item.exit_price_long}" 
+                       step="0.01"
+                       onchange="recalculateHistoryPnL()">
             </div>
             <div class="detail-row">
                 <div class="detail-label">Изменение:</div>
-                <div class="detail-value ${item.exit_price_long > item.entry_price_long ? 'positive' : 'negative'}">
+                <div class="detail-value ${item.exit_price_long > item.entry_price_long ? 'positive' : 'negative'}" id="changeLong">
                     ${((item.exit_price_long - item.entry_price_long) / item.entry_price_long * 100).toFixed(2)}%
                 </div>
             </div>
@@ -1090,17 +1164,27 @@ function showHistoryDetails(id) {
         
         <div class="detail-section">
             <h3>🔴 SHORT (${item.short_exchange.toUpperCase()})</h3>
-            <div class="detail-row">
-                <div class="detail-label">Входная цена:</div>
-                <div class="detail-value">$${item.entry_price_short.toLocaleString()}</div>
+            <div class="form-group">
+                <label>Входная цена (нажмите для редактирования):</label>
+                <input type="number" 
+                       id="editEntryShort" 
+                       class="form-input" 
+                       value="${item.entry_price_short}" 
+                       step="0.01"
+                       onchange="recalculateHistoryPnL()">
             </div>
-            <div class="detail-row">
-                <div class="detail-label">Выходная цена:</div>
-                <div class="detail-value">$${item.exit_price_short.toLocaleString()}</div>
+            <div class="form-group">
+                <label>Выходная цена (нажмите для редактирования):</label>
+                <input type="number" 
+                       id="editExitShort" 
+                       class="form-input" 
+                       value="${item.exit_price_short}" 
+                       step="0.01"
+                       onchange="recalculateHistoryPnL()">
             </div>
             <div class="detail-row">
                 <div class="detail-label">Изменение:</div>
-                <div class="detail-value ${item.exit_price_short < item.entry_price_short ? 'positive' : 'negative'}">
+                <div class="detail-value ${item.exit_price_short < item.entry_price_short ? 'positive' : 'negative'}" id="changeShort">
                     ${((item.entry_price_short - item.exit_price_short) / item.entry_price_short * 100).toFixed(2)}%
                 </div>
             </div>
@@ -1129,13 +1213,136 @@ function showHistoryDetails(id) {
                 <div class="detail-value">${item.duration_hours.toFixed(1)} часов</div>
             </div>
         </div>
+        
+        <div class="info-box" style="background: #fff3cd; border-left-color: #ffc107;">
+            <strong>ℹ️ Редактирование цен</strong><br>
+            Измените цены выше если они отличаются от реальных данных.<br>
+            P&L автоматически пересчитается при изменении.
+        </div>
     `;
     
     document.getElementById('oppModalFooter').innerHTML = `
         <button class="btn-secondary" onclick="closeOpportunityModal()">Закрыть</button>
+        <button class="btn-primary" onclick="saveHistoryEdits()">💾 Сохранить</button>
     `;
     
     document.getElementById('modalOpportunity').classList.add('active');
+}
+
+// ═══ ФУНКЦИЯ: ПЕРЕСЧЁТ P&L ПРИ РЕДАКТИРОВАНИИ ═══
+function recalculateHistoryPnL() {
+    const item = state.selectedHistoryItem;
+    if (!item) return;
+    
+    // Получаем новые цены
+    const entryLong = parseFloat(document.getElementById('editEntryLong').value);
+    const exitLong = parseFloat(document.getElementById('editExitLong').value);
+    const entryShort = parseFloat(document.getElementById('editEntryShort').value);
+    const exitShort = parseFloat(document.getElementById('editExitShort').value);
+    
+    // Пересчитываем изменения
+    const changeLongPercent = ((exitLong - entryLong) / entryLong * 100);
+    const changeShortPercent = ((entryShort - exitShort) / entryShort * 100);
+    
+    // Обновляем изменения
+    const changeLongEl = document.getElementById('changeLong');
+    changeLongEl.textContent = `${changeLongPercent.toFixed(2)}%`;
+    changeLongEl.className = `detail-value ${changeLongPercent >= 0 ? 'positive' : 'negative'}`;
+    
+    const changeShortEl = document.getElementById('changeShort');
+    changeShortEl.textContent = `${changeShortPercent.toFixed(2)}%`;
+    changeShortEl.className = `detail-value ${changeShortPercent >= 0 ? 'positive' : 'negative'}`;
+    
+    // Пересчитываем общий P&L
+    // LONG: (exitLong - entryLong) * size
+    // SHORT: (entryShort - exitShort) * size
+    const longPnl = (exitLong - entryLong) * item.size;
+    const shortPnl = (entryShort - exitShort) * item.size;
+    const totalPnl = longPnl + shortPnl;
+    
+    // Средняя цена входа
+    const avgEntry = (entryLong + entryShort) / 2;
+    const pnlPercent = (totalPnl / (avgEntry * item.size)) * 100;
+    
+    // Обновляем P&L
+    const pnlPercentEl = document.getElementById('historyPnlPercent');
+    pnlPercentEl.textContent = `${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%`;
+    pnlPercentEl.className = `detail-value ${pnlPercent >= 0 ? 'positive' : 'negative'}`;
+    
+    const pnlUsdEl = document.getElementById('historyPnlUsd');
+    pnlUsdEl.textContent = `${totalPnl >= 0 ? '+' : ''}$${Math.abs(totalPnl).toFixed(2)}`;
+    pnlUsdEl.className = `detail-value ${totalPnl >= 0 ? 'positive' : 'negative'}`;
+}
+
+// ═══ ФУНКЦИЯ: СОХРАНИТЬ ИЗМЕНЕНИЯ ИСТОРИИ ═══
+async function saveHistoryEdits() {
+    const item = state.selectedHistoryItem;
+    if (!item) return;
+    
+    // Получаем новые цены
+    const entryLong = parseFloat(document.getElementById('editEntryLong').value);
+    const exitLong = parseFloat(document.getElementById('editExitLong').value);
+    const entryShort = parseFloat(document.getElementById('editEntryShort').value);
+    const exitShort = parseFloat(document.getElementById('editExitShort').value);
+    
+    // Валидация
+    if (!entryLong || !exitLong || !entryShort || !exitShort) {
+        tg.showAlert('⚠️ Все цены должны быть заполнены!');
+        return;
+    }
+    
+    if (entryLong <= 0 || exitLong <= 0 || entryShort <= 0 || exitShort <= 0) {
+        tg.showAlert('⚠️ Цены должны быть больше нуля!');
+        return;
+    }
+    
+    // Пересчитываем P&L
+    const longPnl = (exitLong - entryLong) * item.size;
+    const shortPnl = (entryShort - exitShort) * item.size;
+    const totalPnl = longPnl + shortPnl;
+    const avgEntry = (entryLong + entryShort) / 2;
+    const pnlPercent = (totalPnl / (avgEntry * item.size)) * 100;
+    
+    // Обновляем в state
+    const historyItem = state.history.find(h => h.id === item.id);
+    if (historyItem) {
+        historyItem.entry_price_long = entryLong;
+        historyItem.exit_price_long = exitLong;
+        historyItem.entry_price_short = entryShort;
+        historyItem.exit_price_short = exitShort;
+        historyItem.pnl_usd = totalPnl;
+        historyItem.pnl_percent = pnlPercent;
+    }
+    
+    // TODO: Отправка на API
+    // await fetch(`${API_BASE}/history/${item.id}`, {
+    //     method: 'PUT',
+    //     headers: { 'Content-Type': 'application/json' },
+    //     body: JSON.stringify({
+    //         entry_price_long: entryLong,
+    //         exit_price_long: exitLong,
+    //         entry_price_short: entryShort,
+    //         exit_price_short: exitShort
+    //     })
+    // });
+    
+    tg.showAlert('✅ Изменения сохранены!');
+    
+    // Закрываем модальное окно
+    closeOpportunityModal();
+    
+    // Обновляем список
+    filterAndRenderHistory();
+    
+    console.log('💾 Сохранены изменения истории:', {
+        id: item.id,
+        entry_long: entryLong,
+        exit_long: exitLong,
+        entry_short: entryShort,
+        exit_short: exitShort,
+        pnl: totalPnl,
+        pnl_percent: pnlPercent
+    });
 }
 
 // ═══ ФУНКЦИЯ: ПОДТВЕРЖДЕНИЕ УДАЛЕНИЯ ИЗ ИСТОРИИ ═══
