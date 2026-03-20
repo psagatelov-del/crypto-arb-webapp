@@ -26,7 +26,9 @@ let state = {
         positionsCount: 0,
         totalProfit: 0,
         notifications: 0
-    }
+    },
+    selectedOpportunity: null,
+    selectedPosition: null
 };
 
 // ═══ ПЕРЕКЛЮЧЕНИЕ ТАБОВ ═══
@@ -80,12 +82,12 @@ function renderPositions() {
         return;
     }
     
-    container.innerHTML = state.positions.map(pos => {
+    container.innerHTML = state.positions.map((pos, index) => {
         const pnlClass = pos.pnl_percent >= 0 ? 'positive' : 'negative';
         const pnlSign = pos.pnl_percent >= 0 ? '+' : '';
         
         return `
-            <div class="position-card">
+            <div class="position-card" onclick="showPositionDetails(${index})">
                 <div class="position-header">
                     <div class="position-symbol">${pos.symbol}</div>
                     <div class="position-pnl ${pnlClass}">
@@ -105,6 +107,103 @@ function renderPositions() {
             </div>
         `;
     }).join('');
+}
+
+// ═══ ФУНКЦИЯ: ПОКАЗАТЬ ДЕТАЛИ ПОЗИЦИИ ═══
+function showPositionDetails(index) {
+    const pos = state.positions[index];
+    state.selectedPosition = pos;
+    
+    const pnlClass = pos.pnl_percent >= 0 ? 'positive' : 'negative';
+    const pnlSign = pos.pnl_percent >= 0 ? '+' : '';
+    
+    // Заголовок
+    document.getElementById('posModalTitle').textContent = `📊 ${pos.symbol}`;
+    
+    // Контент
+    const modalBody = document.getElementById('posModalBody');
+    modalBody.innerHTML = `
+        <div class="detail-section">
+            <h3>💰 Прибыль/Убыток</h3>
+            <div class="detail-row">
+                <div class="detail-label">P&L процент:</div>
+                <div class="detail-value ${pnlClass}">${pnlSign}${pos.pnl_percent.toFixed(2)}%</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">P&L USDT:</div>
+                <div class="detail-value ${pnlClass}">${pnlSign}$${Math.abs(pos.pnl_usd).toFixed(2)}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Прогресс до цели:</div>
+                <div class="detail-value">${pos.target_progress.toFixed(0)}%</div>
+            </div>
+        </div>
+        
+        <div class="detail-section">
+            <h3>🟢 LONG Позиция</h3>
+            <div class="detail-row">
+                <div class="detail-label">Биржа:</div>
+                <div class="detail-value">${pos.long_exchange.toUpperCase()}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Входная цена:</div>
+                <div class="detail-value">$${pos.entry_price_long.toLocaleString()}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Текущая цена:</div>
+                <div class="detail-value ${pos.current_price_long > pos.entry_price_long ? 'positive' : 'negative'}">
+                    $${pos.current_price_long.toLocaleString()}
+                </div>
+            </div>
+        </div>
+        
+        <div class="detail-section">
+            <h3>🔴 SHORT Позиция</h3>
+            <div class="detail-row">
+                <div class="detail-label">Биржа:</div>
+                <div class="detail-value">${pos.short_exchange.toUpperCase()}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Входная цена:</div>
+                <div class="detail-value">$${pos.entry_price_short.toLocaleString()}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Текущая цена:</div>
+                <div class="detail-value ${pos.current_price_short < pos.entry_price_short ? 'positive' : 'negative'}">
+                    $${pos.current_price_short.toLocaleString()}
+                </div>
+            </div>
+        </div>
+        
+        <div class="detail-section">
+            <h3>📋 Информация</h3>
+            <div class="detail-row">
+                <div class="detail-label">Размер позиции:</div>
+                <div class="detail-value">${pos.size} ${pos.symbol.replace('USDT', '')}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Плечо:</div>
+                <div class="detail-value">${pos.leverage}x</div>
+            </div>
+        </div>
+    `;
+    
+    // Показываем модальное окно
+    document.getElementById('modalPosition').classList.add('active');
+}
+
+// ═══ ФУНКЦИЯ: ЗАКРЫТЬ МОДАЛЬНОЕ ОКНО ПОЗИЦИИ ═══
+function closePositionModal() {
+    document.getElementById('modalPosition').classList.remove('active');
+}
+
+// ═══ ФУНКЦИЯ: ЗАКРЫТЬ ПОЗИЦИЮ ИЗ МОДАЛЬНОГО ОКНА ═══
+function closePositionFromModal() {
+    if (!state.selectedPosition) return;
+    
+    tg.showAlert(`🔴 Закрытие позиции ${state.selectedPosition.symbol}\n\n⚠️ Эта функция в разработке!\n\nСкоро вы сможете закрывать позиции прямо из Web App!`);
+    
+    closePositionModal();
 }
 
 // ═══ ФУНКЦИЯ: ЗАГРУЗКА ВОЗМОЖНОСТЕЙ ═══
@@ -167,13 +266,13 @@ function renderOpportunities() {
         return;
     }
     
-    container.innerHTML = state.opportunities.map(opp => {
+    container.innerHTML = state.opportunities.map((opp, index) => {
         const longEx = opp.long_exchange || opp.spot_exchange || 'N/A';
         const shortEx = opp.short_exchange || opp.futures_exchange || 'N/A';
         
         return `
-            <div class="opportunity-card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div class="opportunity-card" onclick="showOpportunityDetails(${index})">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div class="opportunity-info">
                         <div class="opportunity-symbol">${opp.symbol}</div>
                         <div class="opportunity-exchanges">
@@ -184,20 +283,94 @@ function renderOpportunities() {
                         +${opp.net_profit.toFixed(1)}%
                     </div>
                 </div>
-                <button class="btn-open-position" onclick="openPositionFromOpportunity('${opp.symbol}')">
-                    📈 Открыть позицию
-                </button>
             </div>
         `;
     }).join('');
 }
 
-// ═══ ФУНКЦИЯ: ОТКРЫТЬ ПОЗИЦИЮ ИЗ ВОЗМОЖНОСТИ ═══
-function openPositionFromOpportunity(symbol) {
-    // Пока просто уведомление
-    tg.showAlert(`📈 Открытие позиции ${symbol}\n\n⚠️ Эта функция в разработке!\n\nСкоро вы сможете открывать позиции прямо из Web App!`);
+// ═══ ФУНКЦИЯ: ПОКАЗАТЬ ДЕТАЛИ ВОЗМОЖНОСТИ ═══
+function showOpportunityDetails(index) {
+    const opp = state.opportunities[index];
+    state.selectedOpportunity = opp;
     
-    console.log('Открыть позицию:', symbol);
+    const longEx = opp.long_exchange || opp.spot_exchange || 'N/A';
+    const shortEx = opp.short_exchange || opp.futures_exchange || 'N/A';
+    
+    // Заголовок
+    document.getElementById('oppModalTitle').textContent = `📊 ${opp.symbol}`;
+    
+    // Контент
+    const modalBody = document.getElementById('oppModalBody');
+    modalBody.innerHTML = `
+        <div class="detail-section">
+            <h3>💰 Прибыль</h3>
+            <div class="detail-row">
+                <div class="detail-label">Чистая прибыль:</div>
+                <div class="detail-value positive">+${opp.net_profit.toFixed(2)}%</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Прибыль фандинг:</div>
+                <div class="detail-value positive">+${(opp.funding_profit || 0).toFixed(2)}%</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Спред:</div>
+                <div class="detail-value">${(opp.spread || 0).toFixed(2)}%</div>
+            </div>
+        </div>
+        
+        <div class="detail-section">
+            <h3>🟢 LONG (${longEx.toUpperCase()})</h3>
+            <div class="detail-row">
+                <div class="detail-label">Цена:</div>
+                <div class="detail-value">$${(opp.long_price || 0).toLocaleString()}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Фандинг:</div>
+                <div class="detail-value">${(opp.long_funding || 0).toFixed(4)}%</div>
+            </div>
+        </div>
+        
+        <div class="detail-section">
+            <h3>🔴 SHORT (${shortEx.toUpperCase()})</h3>
+            <div class="detail-row">
+                <div class="detail-label">Цена:</div>
+                <div class="detail-value">$${(opp.short_price || 0).toLocaleString()}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Фандинг:</div>
+                <div class="detail-value">${(opp.short_funding || 0).toFixed(4)}%</div>
+            </div>
+        </div>
+        
+        <div class="detail-section">
+            <h3>📊 Данные</h3>
+            <div class="detail-row">
+                <div class="detail-label">Объём 24ч:</div>
+                <div class="detail-value">$${(opp.volume || 0).toLocaleString()}</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Стратегия:</div>
+                <div class="detail-value">${opp.strategy === 'futures_only' ? 'Futures-Futures' : opp.strategy}</div>
+            </div>
+        </div>
+    `;
+    
+    // Показываем модальное окно
+    document.getElementById('modalOpportunity').classList.add('active');
+}
+
+// ═══ ФУНКЦИЯ: ЗАКРЫТЬ МОДАЛЬНОЕ ОКНО ВОЗМОЖНОСТИ ═══
+function closeOpportunityModal() {
+    document.getElementById('modalOpportunity').classList.remove('active');
+}
+
+// ═══ ФУНКЦИЯ: ОТКРЫТЬ ПОЗИЦИЮ ИЗ МОДАЛЬНОГО ОКНА ═══
+function openPositionFromModal() {
+    if (!state.selectedOpportunity) return;
+    
+    tg.showAlert(`📈 Открытие позиции ${state.selectedOpportunity.symbol}\n\n⚠️ Эта функция в разработке!\n\nСкоро вы сможете открывать позиции прямо из Web App!`);
+    
+    closeOpportunityModal();
 }
 
 // ═══ ФУНКЦИЯ: ОБНОВЛЕНИЕ СТАТИСТИКИ ═══
@@ -346,5 +519,18 @@ window.addEventListener('load', async () => {
 window.addEventListener('beforeunload', () => {
     if (updateTimer) {
         clearInterval(updateTimer);
+    }
+});
+
+// ═══ ЗАКРЫТИЕ МОДАЛЬНЫХ ОКОН ПРИ КЛИКЕ ВНЕ ═══
+document.getElementById('modalOpportunity')?.addEventListener('click', (e) => {
+    if (e.target.id === 'modalOpportunity') {
+        closeOpportunityModal();
+    }
+});
+
+document.getElementById('modalPosition')?.addEventListener('click', (e) => {
+    if (e.target.id === 'modalPosition') {
+        closePositionModal();
     }
 });
