@@ -28,7 +28,8 @@ let state = {
         notifications: 0
     },
     selectedOpportunity: null,
-    selectedPosition: null
+    selectedPosition: null,
+    openPositionMode: false  // Режим формы открытия
 };
 
 // ═══ ПЕРЕКЛЮЧЕНИЕ ТАБОВ ═══
@@ -51,11 +52,9 @@ document.querySelectorAll('.tab').forEach(tab => {
 // ═══ ФУНКЦИЯ: ЗАГРУЗКА ПОЗИЦИЙ ═══
 async function loadPositions() {
     try {
-        // Запрос к РЕАЛЬНОМУ API
         const response = await fetch(`${API_BASE}/positions?user_id=${userId}`);
         const data = await response.json();
         
-        // Проверяем что данные получены
         if (data.positions) {
             state.positions = data.positions;
         } else {
@@ -67,7 +66,6 @@ async function loadPositions() {
         
     } catch (error) {
         console.error('Ошибка загрузки позиций:', error);
-        // При ошибке показываем пустой список
         state.positions = [];
         renderPositions();
     }
@@ -117,10 +115,8 @@ function showPositionDetails(index) {
     const pnlClass = pos.pnl_percent >= 0 ? 'positive' : 'negative';
     const pnlSign = pos.pnl_percent >= 0 ? '+' : '';
     
-    // Заголовок
     document.getElementById('posModalTitle').textContent = `📊 ${pos.symbol}`;
     
-    // Контент
     const modalBody = document.getElementById('posModalBody');
     modalBody.innerHTML = `
         <div class="detail-section">
@@ -188,7 +184,6 @@ function showPositionDetails(index) {
         </div>
     `;
     
-    // Показываем модальное окно
     document.getElementById('modalPosition').classList.add('active');
 }
 
@@ -201,8 +196,7 @@ function closePositionModal() {
 function closePositionFromModal() {
     if (!state.selectedPosition) return;
     
-    tg.showAlert(`🔴 Закрытие позиции ${state.selectedPosition.symbol}\n\n⚠️ Эта функция в разработке!\n\nСкоро вы сможете закрывать позиции прямо из Web App!`);
-    
+    tg.showAlert(`🔴 Закрытие позиции ${state.selectedPosition.symbol}\n\n⚠️ Эта функция в разработке!`);
     closePositionModal();
 }
 
@@ -212,15 +206,11 @@ async function loadOpportunities() {
         const strategy = document.getElementById('filterStrategy')?.value || 'futures_only';
         const strategyParam = strategy === 'all' ? 'futures_only' : strategy;
         
-        // Запрос к РЕАЛЬНОМУ API
         const response = await fetch(`${API_BASE}/opportunities?user_id=${userId}&strategy=${strategyParam}&min_profit=${settings.minProfit}`);
         const data = await response.json();
         
-        // Проверяем что данные получены
         if (data.opportunities) {
             state.opportunities = data.opportunities;
-            
-            // Сортировка
             const sortBy = document.getElementById('filterSort')?.value || 'net_profit';
             sortOpportunities(sortBy);
         } else {
@@ -292,90 +282,241 @@ function renderOpportunities() {
 function showOpportunityDetails(index) {
     const opp = state.opportunities[index];
     state.selectedOpportunity = opp;
+    state.openPositionMode = false;  // Сначала показываем детали
+    
+    renderOpportunityModal();
+    document.getElementById('modalOpportunity').classList.add('active');
+}
+
+// ═══ ФУНКЦИЯ: ОТРИСОВКА МОДАЛЬНОГО ОКНА ВОЗМОЖНОСТИ ═══
+function renderOpportunityModal() {
+    const opp = state.selectedOpportunity;
+    if (!opp) return;
     
     const longEx = opp.long_exchange || opp.spot_exchange || 'N/A';
     const shortEx = opp.short_exchange || opp.futures_exchange || 'N/A';
     
-    // Заголовок
     document.getElementById('oppModalTitle').textContent = `📊 ${opp.symbol}`;
     
-    // Контент
     const modalBody = document.getElementById('oppModalBody');
-    modalBody.innerHTML = `
-        <div class="detail-section">
-            <h3>💰 Прибыль</h3>
-            <div class="detail-row">
-                <div class="detail-label">Чистая прибыль:</div>
-                <div class="detail-value positive">+${opp.net_profit.toFixed(2)}%</div>
-            </div>
-            <div class="detail-row">
-                <div class="detail-label">Прибыль фандинг:</div>
-                <div class="detail-value positive">+${(opp.funding_profit || 0).toFixed(2)}%</div>
-            </div>
-            <div class="detail-row">
-                <div class="detail-label">Спред:</div>
-                <div class="detail-value">${(opp.spread || 0).toFixed(2)}%</div>
-            </div>
-        </div>
-        
-        <div class="detail-section">
-            <h3>🟢 LONG (${longEx.toUpperCase()})</h3>
-            <div class="detail-row">
-                <div class="detail-label">Цена:</div>
-                <div class="detail-value">$${(opp.long_price || 0).toLocaleString()}</div>
-            </div>
-            <div class="detail-row">
-                <div class="detail-label">Фандинг:</div>
-                <div class="detail-value">${(opp.long_funding || 0).toFixed(4)}%</div>
-            </div>
-        </div>
-        
-        <div class="detail-section">
-            <h3>🔴 SHORT (${shortEx.toUpperCase()})</h3>
-            <div class="detail-row">
-                <div class="detail-label">Цена:</div>
-                <div class="detail-value">$${(opp.short_price || 0).toLocaleString()}</div>
-            </div>
-            <div class="detail-row">
-                <div class="detail-label">Фандинг:</div>
-                <div class="detail-value">${(opp.short_funding || 0).toFixed(4)}%</div>
-            </div>
-        </div>
-        
-        <div class="detail-section">
-            <h3>📊 Данные</h3>
-            <div class="detail-row">
-                <div class="detail-label">Объём 24ч:</div>
-                <div class="detail-value">$${(opp.volume || 0).toLocaleString()}</div>
-            </div>
-            <div class="detail-row">
-                <div class="detail-label">Стратегия:</div>
-                <div class="detail-value">${opp.strategy === 'futures_only' ? 'Futures-Futures' : opp.strategy}</div>
-            </div>
-        </div>
-    `;
     
-    // Показываем модальное окно
-    document.getElementById('modalOpportunity').classList.add('active');
+    if (state.openPositionMode) {
+        // РЕЖИМ ФОРМЫ ОТКРЫТИЯ
+        modalBody.innerHTML = `
+            <div class="form-section">
+                <h3>📈 Открытие позиции ${opp.symbol}</h3>
+                
+                <div class="form-group">
+                    <label>💰 Размер позиции (монет):</label>
+                    <input type="number" id="inputSize" step="0.001" min="0.001" placeholder="0.01" class="form-input">
+                    <small>Введите количество монет ${opp.symbol.replace('USDT', '')}</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>⚡ Плечо (leverage):</label>
+                    <input type="number" id="inputLeverage" value="1" min="1" max="10" class="form-input">
+                    <small>Рекомендуется: 1x (без плеча)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>🎯 Цель LONG (опционально):</label>
+                    <input type="number" id="inputTargetLong" step="0.01" placeholder="${(opp.long_price * 1.02).toFixed(2)}" class="form-input">
+                    <small>Текущая цена: $${opp.long_price.toLocaleString()}</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>🛑 Стоп LONG (опционально):</label>
+                    <input type="number" id="inputStopLong" step="0.01" placeholder="${(opp.long_price * 0.98).toFixed(2)}" class="form-input">
+                </div>
+                
+                <div class="form-group">
+                    <label>🎯 Цель SHORT (опционально):</label>
+                    <input type="number" id="inputTargetShort" step="0.01" placeholder="${(opp.short_price * 0.98).toFixed(2)}" class="form-input">
+                    <small>Текущая цена: $${opp.short_price.toLocaleString()}</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>🛑 Стоп SHORT (опционально):</label>
+                    <input type="number" id="inputStopShort" step="0.01" placeholder="${(opp.short_price * 1.02).toFixed(2)}" class="form-input">
+                </div>
+                
+                <div class="info-box">
+                    <strong>ℹ️ Информация:</strong><br>
+                    🟢 LONG на ${longEx.toUpperCase()}: $${opp.long_price.toLocaleString()}<br>
+                    🔴 SHORT на ${shortEx.toUpperCase()}: $${opp.short_price.toLocaleString()}<br>
+                    💰 Ожидаемая прибыль: +${opp.net_profit.toFixed(2)}%
+                </div>
+            </div>
+        `;
+        
+        // Меняем кнопки
+        document.getElementById('oppModalFooter').innerHTML = `
+            <button class="btn-secondary" onclick="backToOpportunityDetails()">← Назад</button>
+            <button class="btn-primary" onclick="confirmOpenPosition()">✅ Открыть</button>
+        `;
+        
+    } else {
+        // РЕЖИМ ПРОСМОТРА ДЕТАЛЕЙ
+        modalBody.innerHTML = `
+            <div class="detail-section">
+                <h3>💰 Прибыль</h3>
+                <div class="detail-row">
+                    <div class="detail-label">Чистая прибыль:</div>
+                    <div class="detail-value positive">+${opp.net_profit.toFixed(2)}%</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Прибыль фандинг:</div>
+                    <div class="detail-value positive">+${(opp.funding_profit || 0).toFixed(2)}%</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Спред:</div>
+                    <div class="detail-value">${(opp.spread || 0).toFixed(2)}%</div>
+                </div>
+            </div>
+            
+            <div class="detail-section">
+                <h3>💵 Текущие цены</h3>
+                <div class="detail-row">
+                    <div class="detail-label">LONG цена:</div>
+                    <div class="detail-value">$${(opp.long_price || 0).toLocaleString()}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">SHORT цена:</div>
+                    <div class="detail-value">$${(opp.short_price || 0).toLocaleString()}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Разница цен:</div>
+                    <div class="detail-value">$${Math.abs((opp.long_price || 0) - (opp.short_price || 0)).toFixed(2)}</div>
+                </div>
+            </div>
+            
+            <div class="detail-section">
+                <h3>🟢 LONG (${longEx.toUpperCase()})</h3>
+                <div class="detail-row">
+                    <div class="detail-label">Цена:</div>
+                    <div class="detail-value">$${(opp.long_price || 0).toLocaleString()}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Фандинг:</div>
+                    <div class="detail-value">${(opp.long_funding || 0).toFixed(4)}%</div>
+                </div>
+            </div>
+            
+            <div class="detail-section">
+                <h3>🔴 SHORT (${shortEx.toUpperCase()})</h3>
+                <div class="detail-row">
+                    <div class="detail-label">Цена:</div>
+                    <div class="detail-value">$${(opp.short_price || 0).toLocaleString()}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Фандинг:</div>
+                    <div class="detail-value">${(opp.short_funding || 0).toFixed(4)}%</div>
+                </div>
+            </div>
+            
+            <div class="detail-section">
+                <h3>📊 Данные</h3>
+                <div class="detail-row">
+                    <div class="detail-label">Объём 24ч:</div>
+                    <div class="detail-value">$${(opp.volume || 0).toLocaleString()}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Стратегия:</div>
+                    <div class="detail-value">${opp.strategy === 'futures_only' ? 'Futures-Futures' : opp.strategy}</div>
+                </div>
+            </div>
+        `;
+        
+        // Меняем кнопки
+        document.getElementById('oppModalFooter').innerHTML = `
+            <button class="btn-secondary" onclick="closeOpportunityModal()">Закрыть</button>
+            <button class="btn-primary" onclick="openPositionFromModal()">📈 Открыть позицию</button>
+        `;
+    }
 }
 
 // ═══ ФУНКЦИЯ: ЗАКРЫТЬ МОДАЛЬНОЕ ОКНО ВОЗМОЖНОСТИ ═══
 function closeOpportunityModal() {
     document.getElementById('modalOpportunity').classList.remove('active');
+    state.openPositionMode = false;
 }
 
-// ═══ ФУНКЦИЯ: ОТКРЫТЬ ПОЗИЦИЮ ИЗ МОДАЛЬНОГО ОКНА ═══
+// ═══ ФУНКЦИЯ: ОТКРЫТЬ ФОРМУ ПОЗИЦИИ ═══
 function openPositionFromModal() {
-    if (!state.selectedOpportunity) return;
+    state.openPositionMode = true;
+    renderOpportunityModal();
+}
+
+// ═══ ФУНКЦИЯ: ВЕРНУТЬСЯ К ДЕТАЛЯМ ═══
+function backToOpportunityDetails() {
+    state.openPositionMode = false;
+    renderOpportunityModal();
+}
+
+// ═══ ФУНКЦИЯ: ПОДТВЕРДИТЬ ОТКРЫТИЕ ПОЗИЦИИ ═══
+async function confirmOpenPosition() {
+    const opp = state.selectedOpportunity;
+    if (!opp) return;
     
-    tg.showAlert(`📈 Открытие позиции ${state.selectedOpportunity.symbol}\n\n⚠️ Эта функция в разработке!\n\nСкоро вы сможете открывать позиции прямо из Web App!`);
+    // Собираем данные из формы
+    const size = parseFloat(document.getElementById('inputSize').value);
+    const leverage = parseInt(document.getElementById('inputLeverage').value);
+    const targetLong = document.getElementById('inputTargetLong').value;
+    const stopLong = document.getElementById('inputStopLong').value;
+    const targetShort = document.getElementById('inputTargetShort').value;
+    const stopShort = document.getElementById('inputStopShort').value;
+    
+    // Валидация
+    if (!size || size <= 0) {
+        tg.showAlert('⚠️ Введите размер позиции!');
+        return;
+    }
+    
+    if (!leverage || leverage < 1) {
+        tg.showAlert('⚠️ Плечо должно быть минимум 1x!');
+        return;
+    }
+    
+    // Формируем данные для отправки
+    const positionData = {
+        user_id: userId,
+        symbol: opp.symbol,
+        long_exchange: opp.long_exchange || opp.spot_exchange,
+        short_exchange: opp.short_exchange || opp.futures_exchange,
+        size: size,
+        leverage: leverage,
+        target_long: targetLong || null,
+        stop_long: stopLong || null,
+        target_short: targetShort || null,
+        stop_short: stopShort || null,
+        long_price: opp.long_price,
+        short_price: opp.short_price
+    };
+    
+    console.log('📤 Отправка позиции:', positionData);
+    
+    // TODO: Отправка на API
+    // const response = await fetch(`${API_BASE}/positions/open`, {
+    //     method: 'POST',
+    //     headers: { 'Content-Type': 'application/json' },
+    //     body: JSON.stringify(positionData)
+    // });
+    
+    // Пока просто уведомление
+    tg.showAlert(
+        `✅ Позиция открыта!\n\n` +
+        `${opp.symbol}\n` +
+        `Размер: ${size} монет\n` +
+        `Плечо: ${leverage}x\n` +
+        `Прибыль: +${opp.net_profit.toFixed(2)}%\n\n` +
+        `⚠️ Функция отправки в бота в разработке!`
+    );
     
     closeOpportunityModal();
 }
 
 // ═══ ФУНКЦИЯ: ОБНОВЛЕНИЕ СТАТИСТИКИ ═══
 function updateStats() {
-    // Подсчёт общей прибыли
     const totalProfit = state.positions.reduce((sum, pos) => sum + pos.pnl_percent, 0);
     
     state.stats = {
@@ -384,7 +525,6 @@ function updateStats() {
         notifications: state.opportunities.length
     };
     
-    // Обновляем DOM
     document.getElementById('positionsCount').textContent = state.stats.positionsCount;
     
     const profitEl = document.getElementById('totalProfit');
@@ -409,12 +549,10 @@ function updateTime() {
 let updateTimer;
 
 function startAutoUpdate() {
-    // Останавливаем предыдущий таймер если был
     if (updateTimer) {
         clearInterval(updateTimer);
     }
     
-    // Запускаем новый
     updateTimer = setInterval(() => {
         console.log('🔄 Автообновление...');
         loadPositions();
@@ -428,12 +566,12 @@ function startAutoUpdate() {
 // ═══ НАСТРОЙКИ ═══
 document.getElementById('updateInterval').addEventListener('change', (e) => {
     settings.updateInterval = parseInt(e.target.value);
-    startAutoUpdate(); // Перезапускаем с новым интервалом
+    startAutoUpdate();
 });
 
 document.getElementById('minProfit').addEventListener('change', (e) => {
     settings.minProfit = parseFloat(e.target.value);
-    loadOpportunities(); // Перефильтруем возможности
+    loadOpportunities();
 });
 
 document.getElementById('darkMode').addEventListener('change', (e) => {
@@ -442,12 +580,8 @@ document.getElementById('darkMode').addEventListener('change', (e) => {
 });
 
 document.getElementById('saveSettings').addEventListener('click', () => {
-    // Сохраняем в localStorage
     localStorage.setItem('settings', JSON.stringify(settings));
-    
-    // Показываем уведомление
     tg.showAlert('✅ Настройки сохранены!');
-    
     console.log('💾 Настройки сохранены:', settings);
 });
 
@@ -487,7 +621,6 @@ function loadSettings() {
     if (saved) {
         settings = { ...settings, ...JSON.parse(saved) };
         
-        // Применяем настройки к UI
         document.getElementById('updateInterval').value = settings.updateInterval;
         document.getElementById('minProfit').value = settings.minProfit;
         document.getElementById('darkMode').checked = settings.darkMode;
@@ -501,15 +634,12 @@ function loadSettings() {
 window.addEventListener('load', async () => {
     console.log('📱 Инициализация Web App...');
     
-    // Загружаем настройки
     loadSettings();
     
-    // Первая загрузка данных
     await loadPositions();
     await loadOpportunities();
     updateTime();
     
-    // Запускаем автообновление
     startAutoUpdate();
     
     console.log('✅ Web App готов к работе!');
