@@ -654,3 +654,174 @@ body.dark-mode .info-box {
     border-left-color: #667eea;
     color: #fff;
 }
+
+/* ═══ ИСТОРИЯ СДЕЛОК ═══ */
+.history-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 0 0 15px 0;
+}
+
+.history-stat-card {
+    background: white;
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.history-stat-card.positive {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+}
+
+.history-stat-card.negative {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+}
+
+.history-stat-label {
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+}
+
+.history-stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #333;
+}
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.history-card {
+    background: white;
+    border-radius: 10px;
+    padding: 12px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    position: relative;
+}
+
+.history-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.history-symbol {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.history-pnl {
+    font-size: 16px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 6px;
+}
+
+.history-pnl.positive {
+    color: #10b981;
+    background: #d1fae5;
+}
+
+.history-pnl.negative {
+    color: #ef4444;
+    background: #fee2e2;
+}
+
+.history-details {
+    font-size: 12px;
+    color: #666;
+    line-height: 1.6;
+}
+
+.history-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #f5f5f5;
+}
+
+.history-date {
+    font-size: 11px;
+    color: #999;
+}
+
+.history-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.btn-history-view {
+    padding: 6px 12px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-history-delete {
+    padding: 6px 12px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-history-view:active,
+.btn-history-delete:active {
+    transform: scale(0.95);
+}
+
+/* Тёмная тема для истории */
+body.dark-mode .history-stat-card {
+    background: #2a2a2a;
+    color: #fff;
+}
+
+body.dark-mode .history-stat-card.positive {
+    background: linear-gradient(135deg, #065f46 0%, #047857 100%);
+}
+
+body.dark-mode .history-stat-card.negative {
+    background: linear-gradient(135deg, #991b1b 0%, #b91c1c 100%);
+}
+
+body.dark-mode .history-stat-label {
+    color: #aaa;
+}
+
+body.dark-mode .history-stat-value {
+    color: #fff;
+}
+
+body.dark-mode .history-card {
+    background: #2a2a2a;
+}
+
+body.dark-mode .history-symbol {
+    color: #fff;
+}
+
+body.dark-mode .history-details {
+    color: #aaa;
+}
+
+body.dark-mode .history-footer {
+    border-top-color: #444;
+}
