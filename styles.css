@@ -825,3 +825,122 @@ body.dark-mode .history-details {
 body.dark-mode .history-footer {
     border-top-color: #444;
 }
+
+/* ═══ ГРАФИКИ ═══ */
+.chart-container {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.chart-container h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.chart-container canvas {
+    max-height: 250px;
+}
+
+/* Тёмная тема для графиков */
+body.dark-mode .chart-container {
+    background: #2a2a2a;
+}
+
+body.dark-mode .chart-container h3 {
+    color: #fff;
+}
+
+/* ═══ АЛЕРТЫ ═══ */
+.alerts-section {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.alerts-section h2 {
+    margin-bottom: 20px;
+    font-size: 20px;
+}
+
+.alert-card {
+    background: #f9fafb;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 2px solid #eee;
+}
+
+.alert-card h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.volume-slider {
+    width: 70%;
+    margin-right: 10px;
+}
+
+.active-alerts {
+    min-height: 100px;
+}
+
+.alert-item {
+    background: white;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border-left: 4px solid #667eea;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.alert-item-info {
+    flex: 1;
+}
+
+.alert-item-symbol {
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 3px;
+}
+
+.alert-item-condition {
+    font-size: 12px;
+    color: #666;
+}
+
+.alert-item-delete {
+    padding: 6px 12px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+/* Тёмная тема для алертов */
+body.dark-mode .alerts-section {
+    background: #2a2a2a;
+}
+
+body.dark-mode .alert-card {
+    background: #1a1a1a;
+    border-color: #444;
+}
+
+body.dark-mode .alert-card h3 {
+    color: #fff;
+}
+
+body.dark-mode .alert-item {
+    background: #2a2a2a;
+}
