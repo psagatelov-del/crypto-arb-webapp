@@ -38,7 +38,27 @@ let state = {
     selectedPosition: null,
     selectedHistoryItem: null,
     openPositionMode: false,  // Режим формы открытия
-    closePositionMode: false  // Режим формы закрытия
+    closePositionMode: false,  // Режим формы закрытия
+    alerts: [],  // Активные алерты
+    pnlHistory: []  // История P&L для графика
+};
+
+// ═══ НАСТРОЙКИ УВЕДОМЛЕНИЙ ═══
+let alertSettings = {
+    soundEnabled: true,
+    soundTargetReached: true,
+    soundNewOpportunity: true,
+    soundVolume: 50,
+    alertMinProfit: 3,
+    alertSymbols: '',
+    alertOnlyFavorites: false
+};
+
+// ═══ ГРАФИКИ ═══
+let charts = {
+    pnl: null,
+    history: null,
+    portfolio: null
 };
 
 // ═══ ПЕРЕКЛЮЧЕНИЕ ТАБОВ ═══
@@ -770,6 +790,14 @@ function startAutoUpdate() {
         loadPositions();
         loadOpportunities();
         updateTime();
+        
+        // Обновляем графики
+        updatePnLChart();
+        updateHistoryChart();
+        updatePortfolioChart();
+        
+        // Проверяем алерты
+        checkAlerts();
     }, settings.updateInterval);
     
     console.log(`✅ Автообновление запущено (${settings.updateInterval}ms)`);
@@ -1392,16 +1420,356 @@ document.getElementById('filterProfit')?.addEventListener('change', () => {
     filterAndRenderHistory();
 });
 
+// ═══════════════════════════════════════════════════════════
+// ═══ ГРАФИКИ (CHART.JS) ═══
+// ═══════════════════════════════════════════════════════════
+
+// ═══ ФУНКЦИЯ: ИНИЦИАЛИЗАЦИЯ ГРАФИКОВ ═══
+function initCharts() {
+    // График P&L позиций
+    const ctxPnL = document.getElementById('chartPnL');
+    if (ctxPnL) {
+        charts.pnl = new Chart(ctxPnL, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'P&L (%)',
+                    data: [],
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // График истории прибыли
+    const ctxHistory = document.getElementById('chartHistory');
+    if (ctxHistory) {
+        charts.history = new Chart(ctxHistory, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Прибыль ($)',
+                    data: [],
+                    backgroundColor: function(context) {
+                        const value = context.parsed.y;
+                        return value >= 0 ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)';
+                    },
+                    borderColor: function(context) {
+                        const value = context.parsed.y;
+                        return value >= 0 ? '#10b981' : '#ef4444';
+                    },
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Круговая диаграмма портфеля
+    const ctxPortfolio = document.getElementById('chartPortfolio');
+    if (ctxPortfolio) {
+        charts.portfolio = new Chart(ctxPortfolio, {
+            type: 'doughnut',
+            data: {
+                labels: [],
+                datasets: [{
+                    data: [],
+                    backgroundColor: [
+                        '#667eea',
+                        '#764ba2',
+                        '#f093fb',
+                        '#4facfe',
+                        '#43e97b',
+                        '#fa709a',
+                        '#fee140'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+}
+
+// ═══ ФУНКЦИЯ: ОБНОВЛЕНИЕ ГРАФИКА P&L ═══
+function updatePnLChart() {
+    if (!charts.pnl) return;
+    
+    // Добавляем текущий P&L в историю
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    const totalPnl = state.positions.reduce((sum, pos) => sum + pos.pnl_percent, 0);
+    
+    state.pnlHistory.push({
+        time: timeStr,
+        pnl: totalPnl
+    });
+    
+    // Оставляем только последние 20 точек
+    if (state.pnlHistory.length > 20) {
+        state.pnlHistory.shift();
+    }
+    
+    // Обновляем график
+    charts.pnl.data.labels = state.pnlHistory.map(h => h.time);
+    charts.pnl.data.datasets[0].data = state.pnlHistory.map(h => h.pnl);
+    charts.pnl.update();
+}
+
+// ═══ ФУНКЦИЯ: ОБНОВЛЕНИЕ ГРАФИКА ИСТОРИИ ═══
+function updateHistoryChart() {
+    if (!charts.history) return;
+    
+    // Группируем историю по дням
+    const byDate = {};
+    state.history.forEach(item => {
+        const date = new Date(item.closed_at).toLocaleDateString('ru-RU');
+        if (!byDate[date]) {
+            byDate[date] = 0;
+        }
+        byDate[date] += item.pnl_usd;
+    });
+    
+    // Сортируем по дате
+    const sorted = Object.entries(byDate).sort((a, b) => {
+        return new Date(a[0].split('.').reverse().join('-')) - new Date(b[0].split('.').reverse().join('-'));
+    });
+    
+    // Берём последние 10 дней
+    const last10 = sorted.slice(-10);
+    
+    charts.history.data.labels = last10.map(([date]) => date);
+    charts.history.data.datasets[0].data = last10.map(([, pnl]) => pnl);
+    charts.history.update();
+}
+
+// ═══ ФУНКЦИЯ: ОБНОВЛЕНИЕ ГРАФИКА ПОРТФЕЛЯ ═══
+function updatePortfolioChart() {
+    if (!charts.portfolio) return;
+    
+    // Группируем позиции по монетам
+    const bySymbol = {};
+    state.positions.forEach(pos => {
+        const symbol = pos.symbol.replace('USDT', '');
+        if (!bySymbol[symbol]) {
+            bySymbol[symbol] = 0;
+        }
+        bySymbol[symbol] += pos.size;
+    });
+    
+    const symbols = Object.keys(bySymbol);
+    const amounts = Object.values(bySymbol);
+    
+    charts.portfolio.data.labels = symbols;
+    charts.portfolio.data.datasets[0].data = amounts;
+    charts.portfolio.update();
+}
+
+// ═══════════════════════════════════════════════════════════
+// ═══ УВЕДОМЛЕНИЯ И АЛЕРТЫ ═══
+// ═══════════════════════════════════════════════════════════
+
+// ═══ АУДИО ДЛЯ УВЕДОМЛЕНИЙ ═══
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSound(frequency = 800, duration = 200) {
+    if (!alertSettings.soundEnabled) return;
+    
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = frequency;
+    oscillator.type = 'sine';
+    
+    gainNode.gain.setValueAtTime(alertSettings.soundVolume / 100, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + duration / 1000);
+}
+
+// ═══ ФУНКЦИЯ: ТЕСТ ЗВУКА ═══
+function testSound() {
+    playSound(800, 300);
+    setTimeout(() => playSound(1000, 300), 350);
+}
+
+// ═══ ФУНКЦИЯ: ПРОВЕРКА АЛЕРТОВ ═══
+function checkAlerts() {
+    if (!alertSettings.soundEnabled) return;
+    
+    // Проверяем новые возможности
+    if (alertSettings.soundNewOpportunity) {
+        state.opportunities.forEach(opp => {
+            if (opp.net_profit >= alertSettings.alertMinProfit) {
+                // Проверяем фильтр по монетам
+                if (alertSettings.alertSymbols) {
+                    const watchlist = alertSettings.alertSymbols.split(',').map(s => s.trim().toUpperCase());
+                    if (!watchlist.includes(opp.symbol.toUpperCase())) {
+                        return;
+                    }
+                }
+                
+                // Проверяем не дублируем ли алерт
+                const alertKey = `opp_${opp.symbol}_${opp.net_profit.toFixed(1)}`;
+                if (!state.alerts.includes(alertKey)) {
+                    state.alerts.push(alertKey);
+                    playSound(1000, 200);
+                    
+                    // Показываем уведомление
+                    if (window.Notification && Notification.permission === 'granted') {
+                        new Notification('Новая возможность!', {
+                            body: `${opp.symbol}: +${opp.net_profit.toFixed(1)}%`,
+                            icon: '/favicon.ico'
+                        });
+                    }
+                    
+                    // Очищаем старые алерты (оставляем последние 10)
+                    if (state.alerts.length > 10) {
+                        state.alerts.shift();
+                    }
+                }
+            }
+        });
+    }
+    
+    // Проверяем достижение целей позиций
+    if (alertSettings.soundTargetReached) {
+        state.positions.forEach(pos => {
+            if (pos.target_progress >= 100) {
+                const alertKey = `target_${pos.symbol}`;
+                if (!state.alerts.includes(alertKey)) {
+                    state.alerts.push(alertKey);
+                    playSound(1200, 300);
+                    
+                    if (window.Notification && Notification.permission === 'granted') {
+                        new Notification('Цель достигнута!', {
+                            body: `${pos.symbol}: цель достигнута!`,
+                            icon: '/favicon.ico'
+                        });
+                    }
+                }
+            }
+        });
+    }
+}
+
+// ═══ ФУНКЦИЯ: СОХРАНИТЬ НАСТРОЙКИ АЛЕРТОВ ═══
+function saveAlerts() {
+    alertSettings.soundEnabled = document.getElementById('soundEnabled').checked;
+    alertSettings.soundTargetReached = document.getElementById('soundTargetReached').checked;
+    alertSettings.soundNewOpportunity = document.getElementById('soundNewOpportunity').checked;
+    alertSettings.soundVolume = parseInt(document.getElementById('soundVolume').value);
+    alertSettings.alertMinProfit = parseFloat(document.getElementById('alertMinProfit').value);
+    alertSettings.alertSymbols = document.getElementById('alertSymbols').value;
+    alertSettings.alertOnlyFavorites = document.getElementById('alertOnlyFavorites').checked;
+    
+    localStorage.setItem('alertSettings', JSON.stringify(alertSettings));
+    
+    tg.showAlert('✅ Настройки алертов сохранены!');
+    
+    console.log('💾 Настройки алертов сохранены:', alertSettings);
+}
+
+// ═══ ФУНКЦИЯ: ЗАГРУЗИТЬ НАСТРОЙКИ АЛЕРТОВ ═══
+function loadAlertSettings() {
+    const saved = localStorage.getItem('alertSettings');
+    if (saved) {
+        alertSettings = { ...alertSettings, ...JSON.parse(saved) };
+        
+        document.getElementById('soundEnabled').checked = alertSettings.soundEnabled;
+        document.getElementById('soundTargetReached').checked = alertSettings.soundTargetReached;
+        document.getElementById('soundNewOpportunity').checked = alertSettings.soundNewOpportunity;
+        document.getElementById('soundVolume').value = alertSettings.soundVolume;
+        document.getElementById('volumeValue').textContent = alertSettings.soundVolume + '%';
+        document.getElementById('alertMinProfit').value = alertSettings.alertMinProfit;
+        document.getElementById('alertSymbols').value = alertSettings.alertSymbols;
+        document.getElementById('alertOnlyFavorites').checked = alertSettings.alertOnlyFavorites;
+        
+        console.log('📂 Настройки алертов загружены:', alertSettings);
+    }
+    
+    // Запрашиваем разрешение на уведомления
+    if (window.Notification && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+}
+
+// ═══ ОБРАБОТЧИК: Обновление значения громкости ═══
+document.getElementById('soundVolume')?.addEventListener('input', (e) => {
+    document.getElementById('volumeValue').textContent = e.target.value + '%';
+});
+
 // ═══ ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ ═══
 window.addEventListener('load', async () => {
     console.log('📱 Инициализация Web App...');
     
     loadSettings();
+    loadAlertSettings();  // Загружаем настройки алертов
     
     await loadPositions();
     await loadOpportunities();
-    await loadHistory();  // Загружаем историю
+    await loadHistory();
     updateTime();
+    
+    // Инициализируем графики
+    initCharts();
+    updatePnLChart();
+    updateHistoryChart();
+    updatePortfolioChart();
     
     startAutoUpdate();
     
