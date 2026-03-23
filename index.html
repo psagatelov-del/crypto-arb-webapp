@@ -8,6 +8,9 @@
     <!-- Подключаем Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
+    <!-- Подключаем Chart.js для графиков -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
     <!-- Подключаем наши стили -->
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -46,7 +49,9 @@
         <nav class="tabs">
             <button class="tab active" data-tab="positions">📊 Позиции</button>
             <button class="tab" data-tab="opportunities">🔥 ТОП</button>
+            <button class="tab" data-tab="analytics">📈 Графики</button>
             <button class="tab" data-tab="history">📜 История</button>
+            <button class="tab" data-tab="alerts">🔔 Алерты</button>
             <button class="tab" data-tab="settings">⚙️ Настройки</button>
         </nav>
         
@@ -103,7 +108,30 @@
                 </div>
             </div>
             
-            <!-- ТАБ 3: История -->
+            <!-- ТАБ 3: Графики -->
+            <div class="tab-content" id="tab-analytics">
+                
+                <!-- График P&L -->
+                <div class="chart-container">
+                    <h3>📈 График P&L позиций</h3>
+                    <canvas id="chartPnL"></canvas>
+                </div>
+                
+                <!-- График истории прибыли -->
+                <div class="chart-container">
+                    <h3>💰 История прибыли</h3>
+                    <canvas id="chartHistory"></canvas>
+                </div>
+                
+                <!-- Круговая диаграмма портфеля -->
+                <div class="chart-container">
+                    <h3>🥧 Портфель по монетам</h3>
+                    <canvas id="chartPortfolio"></canvas>
+                </div>
+                
+            </div>
+            
+            <!-- ТАБ 4: История -->
             <div class="tab-content" id="tab-history">
                 
                 <!-- Фильтры истории -->
@@ -157,7 +185,82 @@
                 </div>
             </div>
             
-            <!-- ТАБ 4: Настройки -->
+            <!-- ТАБ 5: Алерты -->
+            <div class="tab-content" id="tab-alerts">
+                
+                <div class="alerts-section">
+                    <h2>🔔 Настройка уведомлений</h2>
+                    
+                    <!-- Звуковые уведомления -->
+                    <div class="alert-card">
+                        <h3>🔊 Звуковые уведомления</h3>
+                        
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="soundEnabled" checked>
+                                Включить звуковые уведомления
+                            </label>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <label>Звук при достижении цели позиции</label>
+                            <input type="checkbox" id="soundTargetReached" checked>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <label>Звук при новых возможностях</label>
+                            <input type="checkbox" id="soundNewOpportunity" checked>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <label>Громкость</label>
+                            <input type="range" id="soundVolume" min="0" max="100" value="50" class="volume-slider">
+                            <span id="volumeValue">50%</span>
+                        </div>
+                        
+                        <button class="btn-primary" onclick="testSound()">🔊 Тест звука</button>
+                    </div>
+                    
+                    <!-- Алерты на возможности -->
+                    <div class="alert-card">
+                        <h3>⚡ Алерты на возможности</h3>
+                        
+                        <div class="setting-item">
+                            <label>Минимальная прибыль для уведомления</label>
+                            <input type="number" id="alertMinProfit" value="3" step="0.1" min="0">
+                            <span>%</span>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <label>Отслеживать конкретные монеты (через запятую)</label>
+                            <input type="text" id="alertSymbols" placeholder="BTC/USDT, ETH/USDT, SOL/USDT" class="form-input">
+                            <small>Оставьте пустым для всех монет</small>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="alertOnlyFavorites">
+                                Только избранные монеты
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Активные алерты -->
+                    <div class="alert-card">
+                        <h3>📋 Активные алерты</h3>
+                        <div id="activeAlertsList" class="active-alerts">
+                            <p style="color: #888; text-align: center;">Нет активных алертов</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Кнопки -->
+                    <button class="btn-primary" onclick="saveAlerts()">💾 Сохранить настройки</button>
+                    
+                </div>
+                
+            </div>
+            
+            <!-- ТАБ 6: Настройки -->
             <div class="tab-content" id="tab-settings">
                 <div class="settings">
                     <h2>⚙️ Настройки</h2>
