@@ -58,7 +58,9 @@ let alertSettings = {
 let charts = {
     pnl: null,
     history: null,
-    portfolio: null
+    cumulative: null,  // Кумулятивная прибыль
+    positionPrice: null,  // График цен LONG/SHORT для позиции
+    positionFunding: null  // График фандинга для позиции
 };
 
 // ═══ ПЕРЕКЛЮЧЕНИЕ ТАБОВ ═══
@@ -330,6 +332,22 @@ function renderPositionModal() {
             </div>
         `;
         
+        // ДОБАВЛЯЕМ ГРАФИКИ
+        const modalCharts = document.getElementById('posModalCharts');
+        modalCharts.innerHTML = `
+            <div class="modal-chart-container">
+                <h4>📈 Цены LONG/SHORT</h4>
+                <canvas id="chartPositionPrice"></canvas>
+            </div>
+            <div class="modal-chart-container">
+                <h4>💸 Фандинг</h4>
+                <canvas id="chartPositionFunding"></canvas>
+            </div>
+        `;
+        
+        // Инициализируем графики позиции
+        setTimeout(() => initPositionCharts(pos), 100);
+        
         // Меняем кнопки
         document.getElementById('posModalFooter').innerHTML = `
             <button class="btn-secondary" onclick="closePositionModal()">Закрыть</button>
@@ -342,6 +360,22 @@ function renderPositionModal() {
 function closePositionModal() {
     document.getElementById('modalPosition').classList.remove('active');
     state.closePositionMode = false;
+    
+    // Очищаем графики позиции
+    const modalCharts = document.getElementById('posModalCharts');
+    if (modalCharts) {
+        modalCharts.innerHTML = '';
+    }
+    
+    // Уничтожаем графики
+    if (charts.positionPrice) {
+        charts.positionPrice.destroy();
+        charts.positionPrice = null;
+    }
+    if (charts.positionFunding) {
+        charts.positionFunding.destroy();
+        charts.positionFunding = null;
+    }
 }
 
 // ═══ ФУНКЦИЯ: ОТКРЫТЬ ФОРМУ ЗАКРЫТИЯ ПОЗИЦИИ ═══
@@ -794,7 +828,13 @@ function startAutoUpdate() {
         // Обновляем графики
         updatePnLChart();
         updateHistoryChart();
-        updatePortfolioChart();
+        updateCumulativeChart();
+        
+        // Обновляем графики позиции если открыта
+        if (state.selectedPosition && !state.closePositionMode) {
+            updatePositionPriceChart(state.selectedPosition);
+            updatePositionFundingChart(state.selectedPosition);
+        }
         
         // Проверяем алерты
         checkAlerts();
@@ -1508,24 +1548,20 @@ function initCharts() {
         });
     }
     
-    // Круговая диаграмма портфеля
-    const ctxPortfolio = document.getElementById('chartPortfolio');
-    if (ctxPortfolio) {
-        charts.portfolio = new Chart(ctxPortfolio, {
-            type: 'doughnut',
+    // График кумулятивной прибыли
+    const ctxCumulative = document.getElementById('chartCumulative');
+    if (ctxCumulative) {
+        charts.cumulative = new Chart(ctxCumulative, {
+            type: 'line',
             data: {
                 labels: [],
                 datasets: [{
+                    label: 'Прибыль ($)',
                     data: [],
-                    backgroundColor: [
-                        '#667eea',
-                        '#764ba2',
-                        '#f093fb',
-                        '#4facfe',
-                        '#43e97b',
-                        '#fa709a',
-                        '#fee140'
-                    ]
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    tension: 0.4,
+                    fill: true
                 }]
             },
             options: {
@@ -1533,7 +1569,18 @@ function initCharts() {
                 maintainAspectRatio: true,
                 plugins: {
                     legend: {
-                        position: 'bottom'
+                        display: true,
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value;
+                            }
+                        }
                     }
                 }
             }
@@ -1593,26 +1640,208 @@ function updateHistoryChart() {
     charts.history.update();
 }
 
-// ═══ ФУНКЦИЯ: ОБНОВЛЕНИЕ ГРАФИКА ПОРТФЕЛЯ ═══
-function updatePortfolioChart() {
-    if (!charts.portfolio) return;
+// ═══ ФУНКЦИЯ: ОБНОВЛЕНИЕ ГРАФИКА КУМУЛЯТИВНОЙ ПРИБЫЛИ ═══
+function updateCumulativeChart() {
+    if (!charts.cumulative) return;
     
-    // Группируем позиции по монетам
-    const bySymbol = {};
-    state.positions.forEach(pos => {
-        const symbol = pos.symbol.replace('USDT', '');
-        if (!bySymbol[symbol]) {
-            bySymbol[symbol] = 0;
+    // Группируем историю по дням и считаем накопительную прибыль
+    const byDate = {};
+    state.history.forEach(item => {
+        const date = new Date(item.closed_at).toLocaleDateString('ru-RU');
+        if (!byDate[date]) {
+            byDate[date] = 0;
         }
-        bySymbol[symbol] += pos.size;
+        byDate[date] += item.pnl_usd;
     });
     
-    const symbols = Object.keys(bySymbol);
-    const amounts = Object.values(bySymbol);
+    // Сортируем по дате
+    const sorted = Object.entries(byDate).sort((a, b) => {
+        return new Date(a[0].split('.').reverse().join('-')) - new Date(b[0].split('.').reverse().join('-'));
+    });
     
-    charts.portfolio.data.labels = symbols;
-    charts.portfolio.data.datasets[0].data = amounts;
-    charts.portfolio.update();
+    // Считаем кумулятивную прибыль
+    let cumulative = 0;
+    const cumulativeData = sorted.map(([date, pnl]) => {
+        cumulative += pnl;
+        return { date, cumulative };
+    });
+    
+    // Берём последние 30 дней
+    const last30 = cumulativeData.slice(-30);
+    
+    charts.cumulative.data.labels = last30.map(d => d.date);
+    charts.cumulative.data.datasets[0].data = last30.map(d => d.cumulative);
+    charts.cumulative.update();
+}
+
+// ═══ ФУНКЦИЯ: ИНИЦИАЛИЗАЦИЯ ГРАФИКОВ ПОЗИЦИИ ═══
+function initPositionCharts(pos) {
+    // Уничтожаем старые графики если есть
+    if (charts.positionPrice) {
+        charts.positionPrice.destroy();
+    }
+    if (charts.positionFunding) {
+        charts.positionFunding.destroy();
+    }
+    
+    // График цен LONG/SHORT
+    const ctxPrice = document.getElementById('chartPositionPrice');
+    if (ctxPrice) {
+        charts.positionPrice = new Chart(ctxPrice, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'LONG',
+                        data: [],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4
+                    },
+                    {
+                        label: 'SHORT',
+                        data: [],
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Добавляем текущие цены
+        updatePositionPriceChart(pos);
+    }
+    
+    // График фандинга
+    const ctxFunding = document.getElementById('chartPositionFunding');
+    if (ctxFunding) {
+        charts.positionFunding = new Chart(ctxFunding, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Фандинг (%)',
+                    data: [],
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: function(value) {
+                                return value.toFixed(4) + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Добавляем демо данные фандинга
+        updatePositionFundingChart(pos);
+    }
+}
+
+// ═══ ФУНКЦИЯ: ОБНОВЛЕНИЕ ГРАФИКА ЦЕН ПОЗИЦИИ ═══
+function updatePositionPriceChart(pos) {
+    if (!charts.positionPrice || !pos) return;
+    
+    // Создаём историю цен (добавляем текущую точку)
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    
+    // Инициализируем историю если нет
+    if (!pos.priceHistory) {
+        pos.priceHistory = [];
+    }
+    
+    pos.priceHistory.push({
+        time: timeStr,
+        long: pos.current_price_long,
+        short: pos.current_price_short
+    });
+    
+    // Оставляем последние 20 точек
+    if (pos.priceHistory.length > 20) {
+        pos.priceHistory.shift();
+    }
+    
+    // Обновляем график
+    charts.positionPrice.data.labels = pos.priceHistory.map(h => h.time);
+    charts.positionPrice.data.datasets[0].data = pos.priceHistory.map(h => h.long);
+    charts.positionPrice.data.datasets[1].data = pos.priceHistory.map(h => h.short);
+    charts.positionPrice.update();
+}
+
+// ═══ ФУНКЦИЯ: ОБНОВЛЕНИЕ ГРАФИКА ФАНДИНГА ПОЗИЦИИ ═══
+function updatePositionFundingChart(pos) {
+    if (!charts.positionFunding || !pos) return;
+    
+    // Создаём историю фандинга (демо данные)
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    
+    // Инициализируем историю если нет
+    if (!pos.fundingHistory) {
+        pos.fundingHistory = [];
+        // Добавляем демо данные (в реальности будет из API)
+        const baseFunding = 0.01;
+        for (let i = 0; i < 10; i++) {
+            const variation = (Math.random() - 0.5) * 0.005;
+            pos.fundingHistory.push({
+                time: new Date(now.getTime() - (10 - i) * 3600000).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+                funding: baseFunding + variation
+            });
+        }
+    }
+    
+    // Добавляем текущую точку
+    pos.fundingHistory.push({
+        time: timeStr,
+        funding: 0.01 + (Math.random() - 0.5) * 0.005
+    });
+    
+    // Оставляем последние 20 точек
+    if (pos.fundingHistory.length > 20) {
+        pos.fundingHistory.shift();
+    }
+    
+    // Обновляем график
+    charts.positionFunding.data.labels = pos.fundingHistory.map(h => h.time);
+    charts.positionFunding.data.datasets[0].data = pos.fundingHistory.map(h => h.funding);
+    charts.positionFunding.update();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1769,7 +1998,7 @@ window.addEventListener('load', async () => {
     initCharts();
     updatePnLChart();
     updateHistoryChart();
-    updatePortfolioChart();
+    updateCumulativeChart();
     
     startAutoUpdate();
     
