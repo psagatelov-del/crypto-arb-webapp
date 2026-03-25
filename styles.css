@@ -944,3 +944,54 @@ body.dark-mode .alert-card h3 {
 body.dark-mode .alert-item {
     background: #2a2a2a;
 }
+
+/* ═══ ГРАФИКИ В МОДАЛЬНЫХ ОКНАХ ═══ */
+.modal-large {
+    max-width: 800px;
+    max-height: 90vh;
+}
+
+.modal-charts {
+    padding: 20px;
+    border-top: 1px solid #eee;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.modal-chart-container {
+    background: #f9fafb;
+    border-radius: 10px;
+    padding: 15px;
+}
+
+.modal-chart-container h4 {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.modal-chart-container canvas {
+    max-height: 200px;
+}
+
+/* Тёмная тема для модальных графиков */
+body.dark-mode .modal-charts {
+    border-top-color: #444;
+}
+
+body.dark-mode .modal-chart-container {
+    background: #1a1a1a;
+}
+
+body.dark-mode .modal-chart-container h4 {
+    color: #fff;
+}
+
+/* Адаптив для модальных графиков */
+@media (max-width: 600px) {
+    .modal-charts {
+        grid-template-columns: 1fr;
+    }
+}
