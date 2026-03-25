@@ -117,16 +117,16 @@
                     <canvas id="chartPnL"></canvas>
                 </div>
                 
-                <!-- График истории прибыли -->
+                <!-- График кумулятивной прибыли -->
                 <div class="chart-container">
-                    <h3>💰 История прибыли</h3>
-                    <canvas id="chartHistory"></canvas>
+                    <h3>💰 Кумулятивная прибыль</h3>
+                    <canvas id="chartCumulative"></canvas>
                 </div>
                 
-                <!-- Круговая диаграмма портфеля -->
+                <!-- График истории прибыли -->
                 <div class="chart-container">
-                    <h3>🥧 Портфель по монетам</h3>
-                    <canvas id="chartPortfolio"></canvas>
+                    <h3>📊 История прибыли по дням</h3>
+                    <canvas id="chartHistory"></canvas>
                 </div>
                 
             </div>
@@ -318,13 +318,16 @@
     
     <!-- МОДАЛЬНОЕ ОКНО: Детали позиции -->
     <div class="modal" id="modalPosition">
-        <div class="modal-content">
+        <div class="modal-content modal-large">
             <div class="modal-header">
                 <h2 id="posModalTitle">📊 BTC/USDT</h2>
                 <button class="modal-close" onclick="closePositionModal()">✕</button>
             </div>
             <div class="modal-body" id="posModalBody">
                 <!-- Заполняется JavaScript -->
+            </div>
+            <div class="modal-charts" id="posModalCharts">
+                <!-- Графики позиции -->
             </div>
             <div class="modal-footer" id="posModalFooter">
                 <button class="btn-secondary" onclick="closePositionModal()">Закрыть</button>
