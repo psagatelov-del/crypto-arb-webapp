@@ -191,6 +191,32 @@
                 <div class="alerts-section">
                     <h2>🔔 Настройка уведомлений</h2>
                     
+                    <!-- Автозакрытие позиций -->
+                    <div class="alert-card">
+                        <h3>🤖 Автозакрытие позиций</h3>
+                        
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="autoCloseEnabled" onchange="toggleAutoClose(this.checked)">
+                                Включить автоматическое закрытие при схождении цен
+                            </label>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <label>Минимальный спред для закрытия (%)</label>
+                            <input type="number" id="autoCloseMinSpread" value="0.05" step="0.01" min="0.01" class="form-input">
+                            <small>Позиция закроется когда спред между LONG и SHORT ≤ этого значения</small>
+                        </div>
+                        
+                        <div class="info-box" style="background: #fff3cd; border-left-color: #ffc107;">
+                            <strong>ℹ️ Как работает автозакрытие:</strong><br>
+                            1️⃣ Бот отслеживает спред между ценами LONG и SHORT<br>
+                            2️⃣ Когда цены сходятся (спред ≤ лимита) → автоматически закрывает<br>
+                            3️⃣ <strong>СИНХРОННОЕ</strong> закрытие: одна цена, одно время, один объём<br>
+                            4️⃣ Учитывает ликвидность на обеих биржах
+                        </div>
+                    </div>
+                    
                     <!-- Звуковые уведомления -->
                     <div class="alert-card">
                         <h3>🔊 Звуковые уведомления</h3>
