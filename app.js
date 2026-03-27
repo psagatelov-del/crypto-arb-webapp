@@ -15,6 +15,58 @@ let settings = {
     darkMode: false
 };
 
+// ═══ НАСТРОЙКИ АВТОЗАКРЫТИЯ ═══
+let autoCloseSettings = {
+    enabled: false,           // Включено ли автозакрытие
+    minSpread: 0.05,         // Минимальный спред для закрытия (%)
+    checkInterval: 1000      // Проверка каждую секунду
+};
+
+// ═══ ФУНКЦИЯ: УМНОЕ ФОРМАТИРОВАНИЕ ЦЕН ═══
+function formatPrice(price) {
+    if (!price || price === 0) return '0';
+    
+    // Если цена >= 1, показываем 2 знака после запятой
+    if (price >= 1) {
+        return price.toLocaleString('en-US', { 
+            minimumFractionDigits: 2, 
+            maximumFractionDigits: 2 
+        });
+    }
+    
+    // Если цена < 1, определяем количество значащих цифр
+    // Например: 0.000050 → "0.000050"
+    //           0.00123 → "0.00123"
+    
+    const str = price.toString();
+    
+    // Используем научную нотацию если очень маленькое число
+    if (price < 0.000001) {
+        return price.toExponential(4); // 5.0e-7
+    }
+    
+    const dotIndex = str.indexOf('.');
+    
+    if (dotIndex === -1) return price.toString();
+    
+    let firstNonZero = -1;
+    for (let i = dotIndex + 1; i < str.length; i++) {
+        if (str[i] !== '0') {
+            firstNonZero = i;
+            break;
+        }
+    }
+    
+    if (firstNonZero === -1) return '0';
+    
+    // Показываем все нули + первые 4 значащие цифры
+    // 0.000050 → показываем 6 знаков (4 нуля + "50")
+    const zerosCount = firstNonZero - dotIndex - 1;
+    const totalDigits = zerosCount + 4;
+    
+    return price.toFixed(totalDigits);
+}
+
 // ═══ URL API БОТА ═══
 const API_BASE = 'http://localhost:8000/api';
 
@@ -462,6 +514,203 @@ async function confirmClosePosition() {
     await loadPositions();
 }
 
+// ═══════════════════════════════════════════════════════════
+// ═══ АВТОЗАКРЫТИЕ ПОЗИЦИЙ ПРИ СХОЖДЕНИИ ЦЕН ═══
+// ═══════════════════════════════════════════════════════════
+
+// ═══ ФУНКЦИЯ: ПРОВЕРКА УСЛОВИЙ АВТОЗАКРЫТИЯ ═══
+function checkAutoClose() {
+    if (!autoCloseSettings.enabled) return;
+    
+    state.positions.forEach(async (pos) => {
+        // Вычисляем текущий спред в %
+        const avgPrice = (pos.current_price_long + pos.current_price_short) / 2;
+        const spread = Math.abs(pos.current_price_long - pos.current_price_short);
+        const spreadPercent = (spread / avgPrice) * 100;
+        
+        console.log(`🔍 Проверка ${pos.symbol}: спред ${spreadPercent.toFixed(4)}% (лимит ${autoCloseSettings.minSpread}%)`);
+        
+        // Если спред меньше минимального - закрываем!
+        if (spreadPercent <= autoCloseSettings.minSpread) {
+            console.log(`⚡ АВТОЗАКРЫТИЕ ${pos.symbol}: спред ${spreadPercent.toFixed(4)}% <= ${autoCloseSettings.minSpread}%`);
+            
+            // Синхронное закрытие позиции
+            await autoClosePosition(pos);
+        }
+    });
+}
+
+// ═══ ФУНКЦИЯ: СИНХРОННОЕ АВТОЗАКРЫТИЕ ПОЗИЦИИ ═══
+async function autoClosePosition(pos) {
+    try {
+        console.log(`🤖 Начинаю автозакрытие ${pos.symbol}`);
+        
+        // ШАГ 1: Получаем актуальные данные о ликвидности на биржах
+        const liquidityData = await checkLiquidity(pos);
+        
+        if (!liquidityData.canClose) {
+            console.error(`❌ Недостаточная ликвидность для ${pos.symbol}`);
+            tg.showAlert(`⚠️ Автозакрытие ${pos.symbol} отменено: недостаточная ликвидность`);
+            return;
+        }
+        
+        // ШАГ 2: Определяем размер для синхронного закрытия
+        // Берём минимум из доступного на обеих биржах
+        const closeSize = Math.min(
+            liquidityData.longAvailable,
+            liquidityData.shortAvailable,
+            pos.size  // Не больше размера позиции
+        );
+        
+        console.log(`📊 Размер закрытия: ${closeSize} (LONG: ${liquidityData.longAvailable}, SHORT: ${liquidityData.shortAvailable})`);
+        
+        // ШАГ 3: Получаем текущую цену (одинаковую для обеих сторон)
+        const closePrice = (pos.current_price_long + pos.current_price_short) / 2;
+        
+        console.log(`💰 Цена закрытия: $${formatPrice(closePrice)}`);
+        
+        // ШАГ 4: Формируем данные для синхронного закрытия
+        const closeData = {
+            user_id: userId,
+            symbol: pos.symbol,
+            strategy: 'auto_close',
+            
+            // Биржи
+            long_exchange: pos.long_exchange,
+            short_exchange: pos.short_exchange,
+            
+            // Синхронные параметры
+            close_size: closeSize,
+            close_price: closePrice,  // ОДНА ЦЕНА для обеих сторон!
+            timestamp: Date.now(),    // ОДНО ВРЕМЯ для обеих сторон!
+            
+            // Детали позиции
+            position_id: pos.id,
+            entry_price_long: pos.entry_price_long,
+            entry_price_short: pos.entry_price_short,
+            
+            // P&L
+            pnl_usd: pos.pnl_usd,
+            pnl_percent: pos.pnl_percent,
+            
+            // Флаг синхронности
+            sync_close: true  // ВАЖНО: синхронное закрытие!
+        };
+        
+        console.log('📤 Отправка команды синхронного закрытия:', closeData);
+        
+        // ШАГ 5: Отправляем команду на бота
+        // TODO: Раскомментировать когда API готов
+        /*
+        const response = await fetch(`${API_BASE}/positions/auto-close`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(closeData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log('✅ Синхронное закрытие выполнено:', result);
+            
+            tg.showAlert(
+                `✅ Автозакрытие ${pos.symbol}!\n\n` +
+                `Размер: ${closeSize.toFixed(4)}\n` +
+                `Цена: $${formatPrice(closePrice)}\n` +
+                `P&L: ${pos.pnl_percent >= 0 ? '+' : ''}${pos.pnl_percent.toFixed(2)}%\n` +
+                `Прибыль: ${pos.pnl_percent >= 0 ? '+' : ''}$${Math.abs(pos.pnl_usd).toFixed(2)}`
+            );
+            
+            // Обновляем позиции
+            await loadPositions();
+        } else {
+            throw new Error(result.error || 'Ошибка закрытия');
+        }
+        */
+        
+        // ПОКА ЧТО ДЕМО:
+        console.log('✅ Демо: Синхронное закрытие подготовлено');
+        
+        tg.showAlert(
+            `🤖 АВТОЗАКРЫТИЕ ${pos.symbol}!\n\n` +
+            `✅ Условия выполнены:\n` +
+            `• Спред: ≤${autoCloseSettings.minSpread}%\n\n` +
+            `📊 Параметры закрытия:\n` +
+            `• Размер: ${closeSize.toFixed(4)}\n` +
+            `• Цена: $${formatPrice(closePrice)}\n` +
+            `• LONG: ${pos.long_exchange}\n` +
+            `• SHORT: ${pos.short_exchange}\n\n` +
+            `💰 Результат:\n` +
+            `• P&L: ${pos.pnl_percent >= 0 ? '+' : ''}${pos.pnl_percent.toFixed(2)}%\n` +
+            `• Прибыль: $${Math.abs(pos.pnl_usd).toFixed(2)}\n\n` +
+            `⚠️ API в разработке - демо режим`
+        );
+        
+    } catch (error) {
+        console.error('❌ Ошибка автозакрытия:', error);
+        tg.showAlert(`❌ Ошибка автозакрытия ${pos.symbol}: ${error.message}`);
+    }
+}
+
+// ═══ ФУНКЦИЯ: ПРОВЕРКА ЛИКВИДНОСТИ НА БИРЖАХ ═══
+async function checkLiquidity(pos) {
+    // TODO: Реальная проверка через API бирж
+    // Пока возвращаем демо данные
+    
+    /*
+    // РЕАЛЬНАЯ РЕАЛИЗАЦИЯ:
+    const [longData, shortData] = await Promise.all([
+        fetch(`${API_BASE}/exchange/${pos.long_exchange}/orderbook?symbol=${pos.symbol}`),
+        fetch(`${API_BASE}/exchange/${pos.short_exchange}/orderbook?symbol=${pos.symbol}`)
+    ]);
+    
+    const longBook = await longData.json();
+    const shortBook = await shortData.json();
+    
+    // Проверяем доступный объём в стакане
+    const longAvailable = calculateAvailableVolume(longBook.bids, pos.current_price_long);
+    const shortAvailable = calculateAvailableVolume(shortBook.asks, pos.current_price_short);
+    
+    return {
+        canClose: longAvailable >= 0.001 && shortAvailable >= 0.001,
+        longAvailable,
+        shortAvailable
+    };
+    */
+    
+    // ДЕМО:
+    return {
+        canClose: true,
+        longAvailable: pos.size,
+        shortAvailable: pos.size
+    };
+}
+
+// ═══ ФУНКЦИЯ: ВКЛЮЧИТЬ/ВЫКЛЮЧИТЬ АВТОЗАКРЫТИЕ ═══
+function toggleAutoClose(enabled) {
+    autoCloseSettings.enabled = enabled;
+    
+    if (enabled) {
+        console.log(`✅ Автозакрытие включено (спред ≤${autoCloseSettings.minSpread}%)`);
+        tg.showAlert(`✅ Автозакрытие включено!\n\nПозиции будут автоматически закрываться при спреде ≤${autoCloseSettings.minSpread}%`);
+    } else {
+        console.log('⏸️ Автозакрытие выключено');
+        tg.showAlert('⏸️ Автозакрытие выключено');
+    }
+    
+    // Сохраняем в localStorage
+    localStorage.setItem('autoCloseSettings', JSON.stringify(autoCloseSettings));
+}
+
+// ═══ ФУНКЦИЯ: ЗАГРУЗИТЬ НАСТРОЙКИ АВТОЗАКРЫТИЯ ═══
+function loadAutoCloseSettings() {
+    const saved = localStorage.getItem('autoCloseSettings');
+    if (saved) {
+        autoCloseSettings = { ...autoCloseSettings, ...JSON.parse(saved) };
+        console.log('📂 Настройки автозакрытия загружены:', autoCloseSettings);
+    }
+}
+
 // ═══ ФУНКЦИЯ: ЗАГРУЗКА ВОЗМОЖНОСТЕЙ ═══
 async function loadOpportunities() {
     try {
@@ -838,6 +1087,9 @@ function startAutoUpdate() {
         
         // Проверяем алерты
         checkAlerts();
+        
+        // Проверяем автозакрытие
+        checkAutoClose();
     }, settings.updateInterval);
     
     console.log(`✅ Автообновление запущено (${settings.updateInterval}ms)`);
@@ -1119,8 +1371,8 @@ function renderHistory(items = state.history) {
                 <div class="history-details">
                     💰 P&L: ${pnlSign}$${Math.abs(item.pnl_usd).toFixed(2)}<br>
                     📊 Размер: ${item.size} ${item.symbol.replace('USDT', '')}<br>
-                    🟢 LONG (${item.long_exchange.toUpperCase()}): $${item.entry_price_long.toLocaleString()} → $${item.exit_price_long.toLocaleString()}<br>
-                    🔴 SHORT (${item.short_exchange.toUpperCase()}): $${item.entry_price_short.toLocaleString()} → $${item.exit_price_short.toLocaleString()}<br>
+                    🟢 LONG (${item.long_exchange.toUpperCase()}): $${formatPrice(item.entry_price_long)} → $${formatPrice(item.exit_price_long)}<br>
+                    🔴 SHORT (${item.short_exchange.toUpperCase()}): $${formatPrice(item.entry_price_short)} → $${formatPrice(item.exit_price_short)}<br>
                     ⏱️ Длительность: ${item.duration_hours.toFixed(1)} часов
                 </div>
                 
@@ -1948,9 +2200,17 @@ function saveAlerts() {
     
     localStorage.setItem('alertSettings', JSON.stringify(alertSettings));
     
+    // Сохраняем настройки автозакрытия
+    const minSpread = parseFloat(document.getElementById('autoCloseMinSpread').value);
+    if (minSpread && minSpread > 0) {
+        autoCloseSettings.minSpread = minSpread;
+        localStorage.setItem('autoCloseSettings', JSON.stringify(autoCloseSettings));
+    }
+    
     tg.showAlert('✅ Настройки алертов сохранены!');
     
     console.log('💾 Настройки алертов сохранены:', alertSettings);
+    console.log('💾 Настройки автозакрытия сохранены:', autoCloseSettings);
 }
 
 // ═══ ФУНКЦИЯ: ЗАГРУЗИТЬ НАСТРОЙКИ АЛЕРТОВ ═══
@@ -1969,6 +2229,15 @@ function loadAlertSettings() {
         document.getElementById('alertOnlyFavorites').checked = alertSettings.alertOnlyFavorites;
         
         console.log('📂 Настройки алертов загружены:', alertSettings);
+    }
+    
+    // Загружаем настройки автозакрытия
+    loadAutoCloseSettings();
+    const autoCloseSaved = localStorage.getItem('autoCloseSettings');
+    if (autoCloseSaved) {
+        const settings = JSON.parse(autoCloseSaved);
+        document.getElementById('autoCloseEnabled').checked = settings.enabled || false;
+        document.getElementById('autoCloseMinSpread').value = settings.minSpread || 0.05;
     }
     
     // Запрашиваем разрешение на уведомления
