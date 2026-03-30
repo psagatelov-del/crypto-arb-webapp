@@ -1,368 +1,202 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Арбитраж Dashboard</title>
+<!-- ═══════════════════════════════════════════════════════════
+     ПАТЧ HTML v2.13.15 - ОБНОВЛЁННАЯ СТАТИСТИКА ИСТОРИИ
+     ═══════════════════════════════════════════════════════════
+     
+     Добавить в index_v3.html в раздел истории:
+-->
+
+<!-- ТАБ: История -->
+<div class="tab-content" id="tab-history">
     
-    <!-- Подключаем Telegram Web App SDK -->
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    
-    <!-- Подключаем Chart.js для графиков -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    
-    <!-- Подключаем наши стили -->
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    <!-- Главный контейнер -->
-    <div class="app">
+    <!-- ДОБАВИТЬ: Статистика истории -->
+    <div class="history-stats">
+        <div class="stat-item">
+            <div class="stat-label">Всего сделок</div>
+            <div class="stat-value" id="historyStatsTotal">0</div>
+        </div>
         
-        <!-- Заголовок -->
-        <header class="header">
-            <h1>🚀 Арбитраж Dashboard</h1>
-            <div class="update-time" id="updateTime">Загрузка...</div>
-        </header>
+        <div class="stat-item">
+            <div class="stat-label">Прибыльных</div>
+            <div class="stat-value positive" id="historyStatsProfit">0</div>
+        </div>
         
-        <!-- Статистика (карточки) -->
-        <section class="stats">
-            <div class="stat-card">
-                <div class="stat-icon">📊</div>
-                <div class="stat-value" id="positionsCount">-</div>
-                <div class="stat-label">Позиций</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="stat-icon">💰</div>
-                <div class="stat-value" id="totalProfit">-</div>
-                <div class="stat-label">Прибыль</div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="stat-icon">🔔</div>
-                <div class="stat-value" id="notifications">-</div>
-                <div class="stat-label">Возможностей</div>
-            </div>
-        </section>
+        <div class="stat-item">
+            <div class="stat-label">Убыточных</div>
+            <div class="stat-value negative" id="historyStatsLoss">0</div>
+        </div>
         
-        <!-- Табы -->
-        <nav class="tabs">
-            <button class="tab active" data-tab="positions">📊 Позиции</button>
-            <button class="tab" data-tab="opportunities">🔥 ТОП</button>
-            <button class="tab" data-tab="analytics">📈 Графики</button>
-            <button class="tab" data-tab="history">📜 История</button>
-            <button class="tab" data-tab="alerts">🔔 Алерты</button>
-            <button class="tab" data-tab="settings">⚙️ Настройки</button>
-        </nav>
+        <div class="stat-item">
+            <div class="stat-label">Win Rate</div>
+            <div class="stat-value" id="historyStatsWinRate">0%</div>
+            <small style="font-size: 10px; color: #6b7280;">% прибыльных</small>
+        </div>
         
-        <!-- Контент табов -->
-        <main class="content">
-            
-            <!-- ТАБ 1: Позиции -->
-            <div class="tab-content active" id="tab-positions">
-                <div class="positions-list" id="positionsList">
-                    <div class="loading">
-                        <div class="spinner"></div>
-                        <p>Загрузка позиций...</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- ТАБ 2: ТОП возможности -->
-            <div class="tab-content" id="tab-opportunities">
-                
-                <!-- Кнопка сканирования -->
-                <div class="scan-controls">
-                    <button class="btn-scan" id="btnScan">
-                        🔍 Сканировать возможности
-                    </button>
-                </div>
-                
-                <!-- Фильтры -->
-                <div class="filters">
-                    <div class="filter-group">
-                        <label>Стратегия:</label>
-                        <select id="filterStrategy">
-                            <option value="all">Все</option>
-                            <option value="futures_only">Futures-Futures</option>
-                            <option value="spot_futures">Spot-Futures</option>
-                            <option value="borrow_spot_futures">Borrow-Spot-Futures</option>
-                        </select>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>Сортировка:</label>
-                        <select id="filterSort">
-                            <option value="net_profit">По прибыли</option>
-                            <option value="funding_profit">По фандингу</option>
-                            <option value="spread">По спреду</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <!-- Список возможностей -->
-                <div class="opportunities-list" id="opportunitiesList">
-                    <div class="loading">
-                        <p>Нажмите "Сканировать" для поиска возможностей</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- ТАБ 3: Графики -->
-            <div class="tab-content" id="tab-analytics">
-                
-                <!-- График P&L -->
-                <div class="chart-container">
-                    <h3>📈 График P&L позиций</h3>
-                    <canvas id="chartPnL"></canvas>
-                </div>
-                
-                <!-- График кумулятивной прибыли -->
-                <div class="chart-container">
-                    <h3>💰 Кумулятивная прибыль</h3>
-                    <canvas id="chartCumulative"></canvas>
-                </div>
-                
-                <!-- График истории прибыли -->
-                <div class="chart-container">
-                    <h3>📊 История прибыли по дням</h3>
-                    <canvas id="chartHistory"></canvas>
-                </div>
-                
-            </div>
-            
-            <!-- ТАБ 4: История -->
-            <div class="tab-content" id="tab-history">
-                
-                <!-- Фильтры истории -->
-                <div class="filters">
-                    <div class="filter-group">
-                        <label>Период:</label>
-                        <select id="filterPeriod">
-                            <option value="all">За всё время</option>
-                            <option value="today">Сегодня</option>
-                            <option value="week">Неделя</option>
-                            <option value="month">Месяц</option>
-                        </select>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>Фильтр:</label>
-                        <select id="filterProfit">
-                            <option value="all">Все сделки</option>
-                            <option value="profit">Прибыльные</option>
-                            <option value="loss">Убыточные</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <!-- Статистика истории -->
-                <div class="history-stats">
-                    <div class="history-stat-card">
-                        <div class="history-stat-label">Всего сделок</div>
-                        <div class="history-stat-value" id="historyTotal">-</div>
-                    </div>
-                    <div class="history-stat-card positive">
-                        <div class="history-stat-label">Прибыльных</div>
-                        <div class="history-stat-value" id="historyProfit">-</div>
-                    </div>
-                    <div class="history-stat-card negative">
-                        <div class="history-stat-label">Убыточных</div>
-                        <div class="history-stat-value" id="historyLoss">-</div>
-                    </div>
-                    <div class="history-stat-card">
-                        <div class="history-stat-label">Win Rate</div>
-                        <div class="history-stat-value" id="historyWinRate">-</div>
-                    </div>
-                </div>
-                
-                <!-- Список истории -->
-                <div class="history-list" id="historyList">
-                    <div class="loading">
-                        <div class="spinner"></div>
-                        <p>Загрузка истории...</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- ТАБ 5: Алерты -->
-            <div class="tab-content" id="tab-alerts">
-                
-                <div class="alerts-section">
-                    <h2>🔔 Настройка уведомлений</h2>
-                    
-                    <!-- Автозакрытие позиций -->
-                    <div class="alert-card">
-                        <h3>🤖 Автозакрытие позиций</h3>
-                        
-                        <div class="setting-item">
-                            <label>
-                                <input type="checkbox" id="autoCloseEnabled" onchange="toggleAutoClose(this.checked)">
-                                Включить автоматическое закрытие при схождении цен
-                            </label>
-                        </div>
-                        
-                        <div class="setting-item">
-                            <label>Минимальный спред для закрытия (%)</label>
-                            <input type="number" id="autoCloseMinSpread" value="0.05" step="0.01" min="0.01" class="form-input">
-                            <small>Позиция закроется когда спред между LONG и SHORT ≤ этого значения</small>
-                        </div>
-                        
-                        <div class="info-box" style="background: #fff3cd; border-left-color: #ffc107;">
-                            <strong>ℹ️ Как работает автозакрытие:</strong><br>
-                            1️⃣ Бот отслеживает спред между ценами LONG и SHORT<br>
-                            2️⃣ Когда цены сходятся (спред ≤ лимита) → автоматически закрывает<br>
-                            3️⃣ <strong>СИНХРОННОЕ</strong> закрытие: одна цена, одно время, один объём<br>
-                            4️⃣ Учитывает ликвидность на обеих биржах
-                        </div>
-                    </div>
-                    
-                    <!-- Звуковые уведомления -->
-                    <div class="alert-card">
-                        <h3>🔊 Звуковые уведомления</h3>
-                        
-                        <div class="setting-item">
-                            <label>
-                                <input type="checkbox" id="soundEnabled" checked>
-                                Включить звуковые уведомления
-                            </label>
-                        </div>
-                        
-                        <div class="setting-item">
-                            <label>Звук при достижении цели позиции</label>
-                            <input type="checkbox" id="soundTargetReached" checked>
-                        </div>
-                        
-                        <div class="setting-item">
-                            <label>Звук при новых возможностях</label>
-                            <input type="checkbox" id="soundNewOpportunity" checked>
-                        </div>
-                        
-                        <div class="setting-item">
-                            <label>Громкость</label>
-                            <input type="range" id="soundVolume" min="0" max="100" value="50" class="volume-slider">
-                            <span id="volumeValue">50%</span>
-                        </div>
-                        
-                        <button class="btn-primary" onclick="testSound()">🔊 Тест звука</button>
-                    </div>
-                    
-                    <!-- Алерты на возможности -->
-                    <div class="alert-card">
-                        <h3>⚡ Алерты на возможности</h3>
-                        
-                        <div class="setting-item">
-                            <label>Минимальная прибыль для уведомления</label>
-                            <input type="number" id="alertMinProfit" value="3" step="0.1" min="0">
-                            <span>%</span>
-                        </div>
-                        
-                        <div class="setting-item">
-                            <label>Отслеживать конкретные монеты (через запятую)</label>
-                            <input type="text" id="alertSymbols" placeholder="BTC/USDT, ETH/USDT, SOL/USDT" class="form-input">
-                            <small>Оставьте пустым для всех монет</small>
-                        </div>
-                        
-                        <div class="setting-item">
-                            <label>
-                                <input type="checkbox" id="alertOnlyFavorites">
-                                Только избранные монеты
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <!-- Активные алерты -->
-                    <div class="alert-card">
-                        <h3>📋 Активные алерты</h3>
-                        <div id="activeAlertsList" class="active-alerts">
-                            <p style="color: #888; text-align: center;">Нет активных алертов</p>
-                        </div>
-                    </div>
-                    
-                    <!-- Кнопки -->
-                    <button class="btn-primary" onclick="saveAlerts()">💾 Сохранить настройки</button>
-                    
-                </div>
-                
-            </div>
-            
-            <!-- ТАБ 6: Настройки -->
-            <div class="tab-content" id="tab-settings">
-                <div class="settings">
-                    <h2>⚙️ Настройки</h2>
-                    
-                    <div class="setting-item">
-                        <label>Интервал обновления</label>
-                        <select id="updateInterval">
-                            <option value="1000">1 секунда</option>
-                            <option value="3000" selected>3 секунды</option>
-                            <option value="5000">5 секунд</option>
-                            <option value="10000">10 секунд</option>
-                        </select>
-                    </div>
-                    
-                    <div class="setting-item">
-                        <label>Минимум прибыли ТОП</label>
-                        <input type="number" id="minProfit" value="1.5" step="0.1" min="0">
-                        <span>%</span>
-                    </div>
-                    
-                    <div class="setting-item">
-                        <label>Тёмная тема</label>
-                        <input type="checkbox" id="darkMode" class="toggle">
-                    </div>
-                    
-                    <button class="btn-primary" id="saveSettings">💾 Сохранить</button>
-                    
-                    <div class="version-info">
-                        <p>Версия: v2.09.15</p>
-                        <p>Обновлено: 14.01.2025</p>
-                    </div>
-                </div>
-            </div>
-            
-        </main>
-        
-    </div>
-    
-    <!-- МОДАЛЬНОЕ ОКНО: Детали возможности -->
-    <div class="modal" id="modalOpportunity">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="oppModalTitle">📊 BTC/USDT</h2>
-                <button class="modal-close" onclick="closeOpportunityModal()">✕</button>
-            </div>
-            <div class="modal-body" id="oppModalBody">
-                <!-- Заполняется JavaScript -->
-            </div>
-            <div class="modal-footer" id="oppModalFooter">
-                <button class="btn-secondary" onclick="closeOpportunityModal()">Закрыть</button>
-                <button class="btn-primary" onclick="openPositionFromModal()">📈 Открыть позицию</button>
-            </div>
+        <!-- НОВОЕ: Средний P&L -->
+        <div class="stat-item">
+            <div class="stat-label">Средний P&L</div>
+            <div class="stat-value" id="historyStatsAvgPnL">+0.00%</div>
+            <small style="font-size: 10px; color: #6b7280;">на сделку</small>
         </div>
     </div>
     
-    <!-- МОДАЛЬНОЕ ОКНО: Детали позиции -->
-    <div class="modal" id="modalPosition">
-        <div class="modal-content modal-large">
-            <div class="modal-header">
-                <h2 id="posModalTitle">📊 BTC/USDT</h2>
-                <button class="modal-close" onclick="closePositionModal()">✕</button>
-            </div>
-            <div class="modal-body" id="posModalBody">
-                <!-- Заполняется JavaScript -->
-            </div>
-            <div class="modal-charts" id="posModalCharts">
-                <!-- Графики позиции -->
-            </div>
-            <div class="modal-footer" id="posModalFooter">
-                <button class="btn-secondary" onclick="closePositionModal()">Закрыть</button>
-                <button class="btn-danger" onclick="closePositionFromModal()">🔴 Закрыть позицию</button>
-            </div>
+    <!-- Фильтры (существующие) -->
+    <div class="history-filters">
+        <!-- ... существующий код фильтров ... -->
+    </div>
+    
+    <!-- Список истории -->
+    <div id="historyList" class="history-list">
+        <!-- Заполняется JS -->
+    </div>
+    
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     ОБНОВЛЁННЫЙ ШАБЛОН ЭЛЕМЕНТА ИСТОРИИ (в JavaScript)
+     ═══════════════════════════════════════════════════════════
+-->
+
+<!-- Пример структуры history item: -->
+<div class="history-item" onclick="showHistoryDetails('${item.id}')">
+    
+    <div class="history-header">
+        <div class="history-symbol">${item.symbol}</div>
+        <div class="history-pnl ${pnlClass}">
+            ${pnlSign}${item.pnl_percent.toFixed(2)}%
         </div>
     </div>
     
-    <!-- Подключаем наш JavaScript -->
-    <script src="app.js"></script>
-</body>
-</html>
+    <div class="history-details">
+        💰 P&L: ${pnlSign}$${Math.abs(item.pnl_usd).toFixed(2)}<br>
+        📊 Размер: ${item.size} ${item.symbol.replace('USDT', '')}<br>
+        
+        <!-- ИСПРАВЛЕНО: Проверка на 0 -->
+        🟢 LONG (${item.long_exchange.toUpperCase()}): 
+            $${item.entry_price_long > 0 ? formatPrice(item.entry_price_long) : 'Н/Д'} → 
+            $${item.exit_price_long > 0 ? formatPrice(item.exit_price_long) : 'Н/Д'}<br>
+            
+        🔴 SHORT (${item.short_exchange.toUpperCase()}): 
+            $${item.entry_price_short > 0 ? formatPrice(item.entry_price_short) : 'Н/Д'} → 
+            $${item.exit_price_short > 0 ? formatPrice(item.exit_price_short) : 'Н/Д'}<br>
+            
+        💸 Фандинг: ${item.funding_profit > 0 ? '+' : ''}${item.funding_profit.toFixed(3)}%<br>
+        
+        <!-- ДОБАВЛЕНО: Комиссии -->
+        💵 Комиссии: -$${item.total_fees ? item.total_fees.toFixed(2) : '0.00'}<br>
+        
+        ⏱️ Длительность: ${item.duration_hours.toFixed(1)} часов
+    </div>
+    
+    <!-- ОПЦИОНАЛЬНО: Раскрывающаяся детализация комиссий -->
+    ${item.fees_breakdown ? `
+        <div class="history-fees" style="display: none;" id="fees_${item.id}">
+            <div class="history-fees-title">💵 Детализация комиссий:</div>
+            <div class="history-fees-breakdown">
+                <div class="fee-item">
+                    <span>Открытие LONG:</span>
+                    <span>$${item.fees_breakdown.open_long.toFixed(2)}</span>
+                </div>
+                <div class="fee-item">
+                    <span>Открытие SHORT:</span>
+                    <span>$${item.fees_breakdown.open_short.toFixed(2)}</span>
+                </div>
+                <div class="fee-item">
+                    <span>Закрытие LONG:</span>
+                    <span>$${item.fees_breakdown.close_long.toFixed(2)}</span>
+                </div>
+                <div class="fee-item">
+                    <span>Закрытие SHORT:</span>
+                    <span>$${item.fees_breakdown.close_short.toFixed(2)}</span>
+                </div>
+                ${item.fees_breakdown.transfer > 0 ? `
+                    <div class="fee-item">
+                        <span>Трансфер:</span>
+                        <span>$${item.fees_breakdown.transfer.toFixed(2)}</span>
+                    </div>
+                ` : ''}
+            </div>
+            <button class="info-icon" onclick="toggleFees('${item.id}')">
+                ℹ️ Показать комиссии
+            </button>
+        </div>
+    ` : ''}
+    
+    <div class="history-footer">
+        <div class="history-date">
+            📅 ${dateStr} ${timeStr}
+        </div>
+        <div class="history-actions">
+            <button class="btn-history-view" onclick="showHistoryDetails('${item.id}')">
+                👁️ Детали
+            </button>
+            <button class="btn-history-delete" onclick="deleteHistoryItem('${item.id}')">
+                🗑️ Удалить
+            </button>
+        </div>
+    </div>
+    
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     АВТОЗАКРЫТИЕ С ОТРИЦАТЕЛЬНЫМИ ЗНАЧЕНИЯМИ
+     ═══════════════════════════════════════════════════════════
+-->
+
+<!-- В разделе настроек автозакрытия: -->
+<div class="alert-card">
+    <h3>🤖 Автозакрытие позиций</h3>
+    
+    <div class="setting-item">
+        <label>
+            <input type="checkbox" id="autoCloseEnabled" onchange="toggleAutoClose(this.checked)">
+            Включить автоматическое закрытие при схождении цен
+        </label>
+    </div>
+    
+    <div class="setting-item autoclose-input-group">
+        <label>Спред для закрытия (%)</label>
+        <input 
+            type="number" 
+            id="autoCloseMinSpread" 
+            value="0.05" 
+            step="0.01" 
+            min="-5.00"
+            max="5.00"
+            class="form-input"
+        >
+        <span class="autoclose-input-hint">%</span>
+    </div>
+    
+    <!-- ДОБАВЛЕНО: Объяснение отрицательных значений -->
+    <div class="autoclose-explanation">
+        <strong>💡 Как работает:</strong><br>
+        • <strong>Положительное</strong> (например, 0.05%): закрывает когда цены <strong>сходятся</strong> (спред ≤ 0.05%)<br>
+        • <strong>Отрицательное</strong> (например, -0.5%): закрывает когда цены <strong>расходятся</strong> (спред ≥ -0.5%)<br>
+        • <strong>Ноль</strong> (0%): закрывает когда цены <strong>равны</strong>
+    </div>
+    
+    <div class="info-box" style="background: #fff3cd; border-left-color: #ffc107;">
+        <strong>ℹ️ Примеры использования:</strong><br>
+        🔹 <strong>+0.05%</strong>: Закрывать когда цены почти равны (классическое схождение)<br>
+        🔹 <strong>0%</strong>: Закрывать точно в момент схождения<br>
+        🔹 <strong>-0.3%</strong>: Закрывать при небольшом расхождении (защита от разворота)<br>
+        🔹 <strong>-1.0%</strong>: Закрывать при сильном расхождении (стоп-лосс)
+    </div>
+    
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     ПОДКЛЮЧЕНИЕ CHARTJS ANNOTATION PLUGIN
+     ═══════════════════════════════════════════════════════════
+-->
+
+<!-- Добавить в <head> после основного Chart.js: -->
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.2.1"></script>
+
+<!-- ИЛИ через CDN с полным URL: -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.2.1/chartjs-plugin-annotation.min.js"></script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     КОНЕЦ HTML ПАТЧА
+     ═══════════════════════════════════════════════════════════
+-->
